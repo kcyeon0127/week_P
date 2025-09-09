@@ -1,0 +1,12 @@
+{"time":"2025-09-04T11:20:38.479384139Z","level":"INFO","msg":"stream: starting","core version":"0.21.3"}
+{"time":"2025-09-04T11:20:43.541792922Z","level":"ERROR","msg":"monitor: failed to initialize GPU resource: monitor: could not get GPU binary port: timeout reading portfile /tmp/wandb-system-monitor-portfile-217783559"}
+{"time":"2025-09-04T11:20:43.821720753Z","level":"INFO","msg":"stream: created new stream","id":"ea0tprka"}
+{"time":"2025-09-04T11:20:43.822524817Z","level":"INFO","msg":"stream: started","id":"ea0tprka"}
+{"time":"2025-09-04T11:20:43.822537966Z","level":"INFO","msg":"handler: started","stream_id":"ea0tprka"}
+{"time":"2025-09-04T11:20:43.822563375Z","level":"INFO","msg":"writer: started","stream_id":"ea0tprka"}
+{"time":"2025-09-04T11:20:43.822548417Z","level":"INFO","msg":"sender: started","stream_id":"ea0tprka"}
+{"time":"2025-09-04T11:21:11.028872148Z","level":"INFO","msg":"stream: closing","id":"ea0tprka"}
+{"time":"2025-09-04T11:21:11.784282708Z","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-09-04T11:21:12.034404215Z","level":"INFO","msg":"handler: closed","stream_id":"ea0tprka"}
+{"time":"2025-09-04T11:21:12.034561174Z","level":"INFO","msg":"sender: closed","stream_id":"ea0tprka"}
+{"time":"2025-09-04T11:21:12.034589386Z","level":"INFO","msg":"stream: closed","id":"ea0tprka"}

@@ -1,0 +1,97 @@
+_wandb:
+    value:
+        cli_version: 0.21.3
+        e:
+            vnqaetp2jj3xrmzuo3bdu8isxwu6b7bd:
+                codePath: train_ynat.py
+                codePathLocal: train_ynat.py
+                cpu_count: 52
+                cpu_count_logical: 104
+                disk:
+                    /:
+                        total: "35854465466368"
+                        used: "6897571082240"
+                email: 0126kcy@gmail.com
+                executable: /root/miniconda/envs/week_P/bin/python
+                host: 94990f9ca9a9
+                memory:
+                    total: "270068043776"
+                os: Linux-5.15.0-84-generic-x86_64-with-glibc2.35
+                program: /root/workspace/week_P/W_5/train_ynat.py
+                python: CPython 3.11.13
+                root: outputs
+                startedAt: "2025-09-04T11:24:53.673192Z"
+                writerId: vnqaetp2jj3xrmzuo3bdu8isxwu6b7bd
+        m:
+            - "1": trainer/global_step
+              "6":
+                - 3
+              "7": []
+            - "2": '*'
+              "5": 1
+              "6":
+                - 1
+              "7": []
+        python_version: 3.11.13
+        t:
+            "1":
+                - 1
+                - 5
+                - 9
+                - 11
+                - 41
+                - 49
+                - 51
+                - 53
+                - 103
+            "2":
+                - 1
+                - 5
+                - 9
+                - 11
+                - 41
+                - 49
+                - 51
+                - 53
+                - 103
+            "3":
+                - 1
+                - 7
+                - 66
+            "4": 3.11.13
+            "5": 0.21.3
+            "6": 4.56.0
+            "12": 0.21.3
+            "13": linux-x86_64
+batch_size:
+    value: 32
+epochs:
+    value: 3
+lr:
+    value: 2e-05
+max_length:
+    value: 128
+model_name:
+    value: bert-base-multilingual-cased
+num_labels:
+    value: 7
+num_workers:
+    value: 4
+out_dir:
+    value: outputs
+seed:
+    value: 42
+wandb_entity:
+    value: null
+wandb_log_model:
+    value: "true"
+wandb_offline:
+    value: false
+wandb_project:
+    value: week5-ynat
+wandb_run_name:
+    value: null
+warmup_steps:
+    value: 0
+weight_decay:
+    value: 0.01

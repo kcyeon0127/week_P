@@ -1,0 +1,24 @@
+{
+  "os": "Linux-5.15.0-84-generic-x86_64-with-glibc2.35",
+  "python": "CPython 3.11.13",
+  "startedAt": "2025-09-04T11:24:53.673192Z",
+  "program": "/root/workspace/week_P/W_5/train_ynat.py",
+  "codePath": "train_ynat.py",
+  "codePathLocal": "train_ynat.py",
+  "email": "0126kcy@gmail.com",
+  "root": "outputs",
+  "host": "94990f9ca9a9",
+  "executable": "/root/miniconda/envs/week_P/bin/python",
+  "cpu_count": 52,
+  "cpu_count_logical": 104,
+  "disk": {
+    "/": {
+      "total": "35854465466368",
+      "used": "6897571082240"
+    }
+  },
+  "memory": {
+    "total": "270068043776"
+  },
+  "writerId": "vnqaetp2jj3xrmzuo3bdu8isxwu6b7bd"
+}

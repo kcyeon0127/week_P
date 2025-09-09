@@ -1,0 +1,116 @@
+[34m[1mwandb[0m: logging graph, to disable use `wandb.watch(log_graph=False)`
+Using 16bit Automatic Mixed Precision (AMP)
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+HPU available: False, using: 0 HPUs
+README.md: 22.5kB [00:00, 17.1MB/s]
+ynat/train-00000-of-00001.parquet: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 4.17M/4.17M [00:02<00:00, 1.87MB/s]
+ynat/validation-00000-of-00001.parquet: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 847k/847k [00:01<00:00, 570kB/s]
+Generating train split: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 45678/45678 [00:00<00:00, 630464.42 examples/s]
+Generating validation split: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 9107/9107 [00:00<00:00, 562878.92 examples/s]
+[34m[1mwandb[0m: [33mWARNING[0m `wandb.require('service')` is a no-op as it is now the default behavior.
+Map: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 36542/36542 [00:01<00:00, 18496.99 examples/s]
+[34m[1mwandb[0m: [33mWARNING[0m `wandb.require('service')` is a no-op as it is now the default behavior.
+Map: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 9136/9136 [00:00<00:00, 23867.40 examples/s]
+[34m[1mwandb[0m: [33mWARNING[0m `wandb.require('service')` is a no-op as it is now the default behavior.
+Map: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 9107/9107 [00:00<00:00, 18546.49 examples/s]
+/root/miniconda/envs/week_P/lib/python3.11/site-packages/pytorch_lightning/callbacks/model_checkpoint.py:701: Checkpoint directory /root/workspace/week_P/W_5/outputs exists and is not empty.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1,2,3]
+/root/miniconda/envs/week_P/lib/python3.11/site-packages/pytorch_lightning/utilities/model_summary/model_summary.py:231: Precision 16-mixed is not supported by the model summary.  Estimated model size in MB will not be accurate. Using 32 bits instead.
+
+  | Name       | Type               | Params | Mode
+----------------------------------------------------------
+0 | backbone   | CustomBertBackbone | 177 M  | train
+1 | dropout    | Dropout            | 0      | train
+2 | classifier | Linear             | 5.4 K  | train
+3 | criterion  | CrossEntropyLoss   | 0      | train
+4 | acc        | MulticlassAccuracy | 0      | train
+5 | f1         | MulticlassF1Score  | 0      | train
+----------------------------------------------------------
+177 M     Trainable params
+0         Non-trainable params
+177 M     Total params
+711.435   Total estimated model params size (MB)
+234       Modules in train mode
+0         Modules in eval mode
+Sanity Checking: |                                                                                                                                                                                                      | 0/? [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "/root/workspace/week_P/W_5/train_ynat.py", line 90, in <module>
+    main()
+  File "/root/workspace/week_P/W_5/train_ynat.py", line 79, in main
+    trainer.fit(model, dm)
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/pytorch_lightning/trainer/trainer.py", line 560, in fit
+    call._call_and_handle_interrupt(
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/pytorch_lightning/trainer/call.py", line 49, in _call_and_handle_interrupt
+    return trainer_fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/pytorch_lightning/trainer/trainer.py", line 598, in _fit_impl
+    self._run(model, ckpt_path=ckpt_path)
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/pytorch_lightning/trainer/trainer.py", line 1011, in _run
+    results = self._run_stage()
+              ^^^^^^^^^^^^^^^^^
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/pytorch_lightning/trainer/trainer.py", line 1053, in _run_stage
+    self._run_sanity_check()
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/pytorch_lightning/trainer/trainer.py", line 1082, in _run_sanity_check
+    val_loop.run()
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/pytorch_lightning/loops/utilities.py", line 179, in _decorator
+    return loop_run(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/pytorch_lightning/loops/evaluation_loop.py", line 138, in run
+    batch, batch_idx, dataloader_idx = next(data_fetcher)
+                                       ^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/pytorch_lightning/loops/fetchers.py", line 134, in __next__
+    batch = super().__next__()
+            ^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/pytorch_lightning/loops/fetchers.py", line 61, in __next__
+    batch = next(self.iterator)
+            ^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/pytorch_lightning/utilities/combined_loader.py", line 341, in __next__
+    out = next(self._iterator)
+          ^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/pytorch_lightning/utilities/combined_loader.py", line 142, in __next__
+    out = next(self.iterators[0])
+          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 701, in __next__
+    data = self._next_data()
+           ^^^^^^^^^^^^^^^^^
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 1465, in _next_data
+    return self._process_data(data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/torch/utils/data/dataloader.py", line 1491, in _process_data
+    data.reraise()
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/torch/_utils.py", line 715, in reraise
+    raise exception
+ValueError: Caught ValueError in DataLoader worker process 0.
+Original Traceback (most recent call last):
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/transformers/tokenization_utils_base.py", line 767, in convert_to_tensors
+    tensor = as_tensor(value)
+             ^^^^^^^^^^^^^^^^
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/transformers/tokenization_utils_base.py", line 729, in as_tensor
+    return torch.tensor(value)
+           ^^^^^^^^^^^^^^^^^^^
+ValueError: too many dimensions 'str'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/torch/utils/data/_utils/worker.py", line 351, in _worker_loop
+    data = fetcher.fetch(index)  # type: ignore[possibly-undefined]
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/torch/utils/data/_utils/fetch.py", line 55, in fetch
+    return self.collate_fn(data)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/transformers/data/data_collator.py", line 272, in __call__
+    batch = pad_without_fast_tokenizer_warning(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/transformers/data/data_collator.py", line 67, in pad_without_fast_tokenizer_warning
+    padded = tokenizer.pad(*pad_args, **pad_kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/transformers/tokenization_utils_base.py", line 3430, in pad
+    return BatchEncoding(batch_outputs, tensor_type=return_tensors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/transformers/tokenization_utils_base.py", line 240, in __init__
+    self.convert_to_tensors(tensor_type=tensor_type, prepend_batch_axis=prepend_batch_axis)
+  File "/root/miniconda/envs/week_P/lib/python3.11/site-packages/transformers/tokenization_utils_base.py", line 783, in convert_to_tensors
+    raise ValueError(
+ValueError: Unable to create tensor, you should probably activate truncation and/or padding with 'padding=True' 'truncation=True' to have batched tensors with the same length. Perhaps your features (`text` in this case) have excessive nesting (inputs type `list` where type `int` is expected).
