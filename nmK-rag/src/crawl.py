@@ -12,30 +12,25 @@ OUT_DIR = "data_raw"
 
 
 # ======================================================================================
-# [수정 영역]
+# [설정 영역]
 # --------------------------------------------------------------------------------------
 
-# 1. 크롤링 시작점: 상설 전시 전체 개요, 추천 동선 등 최상위 페이지만 포함
+# 1. 크롤링 시작점: 상설/특별 전시의 최상위 페이지만 포함
 SEED_URLS = [
-    "https://www.museum.go.kr/MUSEUM/contents/M0201010000.do",  # 상설전시 층별안내
-    "https://www.museum.go.kr/MUSEUM/contents/M0201110000.do",  # 야외전시
+    "https://www.museum.go.kr/MUSEUM/contents/M0201010000.do",      # 상설전시 층별안내
+    "https://www.museum.go.kr/MUSEUM/contents/M0201110000.do",      # 야외전시
+    "https://www.museum.go.kr/MUSEUM/contents/M0202010000.do?menuId=current", # 현재 전시
 ]
 
-# 2. 수집을 허용할 전시관의 ID 목록
-#    - 760: 선사·고대관
-#    - 759: 중·근세관
-#    - 758: 서화관
-#    - 755: 기증관
-#    - 631120: 사유의 방
-#    - 757: 조각·공예관
-#    - 756: 세계문화관
-#    - 406012: 역사의 길
+# 2. 수집을 허용할 상설 전시관의 ID 목록
 ALLOWED_HALL_IDS = ["760", "759", "758", "755", "631120", "757", "756", "406012"]
+
+# 3. 수집할 최근 지난 전시의 개수
+PAST_EXHIBITION_LIMIT = 30
 
 # ======================================================================================
 
 def is_same_host(seed: str, link: str) -> bool:
-    """링크가 시드 URL과 동일한 호스트에 속하는지 확인합니다."""
     try:
         a = urlparse(seed).netloc
         b = urlparse(link).netloc
@@ -44,29 +39,70 @@ def is_same_host(seed: str, link: str) -> bool:
         return False
 
 def normalize_url(base: str, href: str) -> str:
-    """상대 URL을 절대 URL로 변환합니다."""
     if not href or href.startswith(("#", "mailto:", "tel:", "javascript:")):
         return ""
     return urljoin(base, href.strip())
 
-
 def extract_text(soup: BeautifulSoup) -> str:
-    """HTML에서 불필요한 태그를 제거하고 텍스트를 추출합니다."""
     for tag in soup(["script", "style", "noscript", "header", "footer", "nav"]):
         tag.decompose()
     text = soup.get_text("\n", strip=True)
     text = re.sub(r"\n{2,}", "\n", text)
     return text
 
+def discover_past_exhibitions(limit: int) -> list[str]:
+    """'지난 전시' 목록을 페이지별로 순회하며 최신 전시 링크를 수집합니다."""
+    discovered_urls = []
+    base_url = "https://www.museum.go.kr/MUSEUM/contents/M0202030000.do?menuId=past"
+    page_num = 1
+    print(f"\n'지난 전시' 목록에서 최신 {limit}개를 수집합니다...")
+
+    with tqdm(total=limit, desc="Discovering past exhibitions") as pbar:
+        while len(discovered_urls) < limit:
+            page_url = f"{base_url}&cpage={page_num}"
+            try:
+                response = requests.get(page_url, headers=HEADERS, timeout=15)
+                response.raise_for_status()
+                soup = BeautifulSoup(response.text, "html.parser")
+                
+                items = soup.find_all("div", class_="card")
+                if not items:
+                    print("\n더 이상 '지난 전시' 항목이 없어 수집을 중단합니다.")
+                    break
+
+                for item in items:
+                    if len(discovered_urls) >= limit:
+                        break
+                    
+                    link_tag = item.find("a")
+                    if link_tag and link_tag.get('href') and not link_tag['href'].startswith("javascript"):
+                        full_url = normalize_url(base_url, link_tag['href'])
+                        if full_url not in discovered_urls:
+                            discovered_urls.append(full_url)
+                            pbar.update(1)
+                
+                page_num += 1
+                time.sleep(0.5)
+
+            except requests.RequestException as e:
+                print(f"\n'{page_url}' 페이지를 가져오는 중 오류 발생: {e}")
+                break
+    
+    print(f"{len(discovered_urls)}개의 지난 전시 링크를 찾았습니다.")
+    return discovered_urls
+
 def crawl():
-    """시작 페이지에서 출발하여, 허용된 전시관 및 그 안의 전시품 페이지만을 지능적으로 크롤링합니다."""
     os.makedirs(OUT_DIR, exist_ok=True)
 
-    queue = SEED_URLS.copy()
+    # 1. 지난 전시 링크를 동적으로 수집하여 시드 URL에 추가
+    past_exhibition_urls = discover_past_exhibitions(limit=PAST_EXHIBITION_LIMIT)
+    all_seed_urls = SEED_URLS + past_exhibition_urls
+
+    queue = all_seed_urls.copy()
     visited = set()
 
-    print(f"총 {len(SEED_URLS)}개의 시작 URL로부터 크롤링을 시작합니다.")
-    print(f"허용된 전시관 ID: {ALLOWED_HALL_IDS}")
+    print(f"\n총 {len(all_seed_urls)}개의 시작 URL로부터 전체 크롤링을 시작합니다.")
+    print(f"허용된 상설 전시관 ID: {ALLOWED_HALL_IDS}")
 
     pbar = tqdm(total=len(queue), desc="Crawling pages")
     while queue:
@@ -91,21 +127,18 @@ def crawl():
             with open(os.path.join(OUT_DIR, f"{doc.doc_id}.json"), "w", encoding="utf-8") as f:
                 f.write(doc.model_dump_json(ensure_ascii=False, indent=2))
 
-            # 현재 페이지에서 허용된 링크만 추출하여 큐에 추가
             newly_found = 0
             for a in soup.find_all("a", href=True):
                 nxt = normalize_url(url, a["href"])
                 
-                if not (nxt and is_same_host(SEED_URLS[0], nxt) and nxt not in visited and nxt not in queue):
+                if not (nxt and is_same_host(all_seed_urls[0], nxt) and nxt not in visited and nxt not in queue):
                     continue
 
-                # 조건 1: 개별 전시품 상세페이지인가? (relicId)
                 if "relicId=" in nxt:
                     queue.append(nxt)
                     newly_found += 1
                     continue
 
-                # 조건 2: 우리가 허용한 전시관 페이지인가? (showHallId)
                 if "showHallId=" in nxt:
                     try:
                         parsed_url = urlparse(nxt)
@@ -113,8 +146,14 @@ def crawl():
                         if 'showHallId' in query_params and query_params['showHallId'][0] in ALLOWED_HALL_IDS:
                             queue.append(nxt)
                             newly_found += 1
+                            continue
                     except Exception:
                         continue
+                
+                if "exhiSpThemId=" in nxt:
+                    queue.append(nxt)
+                    newly_found += 1
+                    continue
             
             if newly_found > 0:
                 pbar.total += newly_found
