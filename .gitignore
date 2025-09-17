@@ -10,3 +10,7 @@ __pycache__/
 *.pyc
 .env
 .venv/
+
+
+W_6/data/
+W_6/runs/

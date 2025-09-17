@@ -79,8 +79,8 @@ def train(cfg: TrainConfig):
         weight_decay=cfg.weight_decay,
         warmup_ratio=cfg.warmup_ratio,
         logging_steps=50,
-        evaluation_strategy="epoch",   # 최신 표기
-        save_strategy="epoch",
+        eval_strategy="epoch",   # 이전 표기
+        load_best_model_at_end=True,
         save_total_limit=2,
         seed=cfg.seed,
         fp16=cfg.fp16,
