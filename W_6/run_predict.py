@@ -5,6 +5,7 @@ from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 from utils import build_prompt, TARGET_PREFIX
+from utils_checkpoint import find_latest_checkpoint
 
 @dataclass
 class GenConfig:
@@ -26,15 +27,16 @@ def predict(cfg: GenConfig):
 
     df = pd.read_csv(csv_path)
 
-    # 모델/토크나이저
-    tokenizer = AutoTokenizer.from_pretrained(cfg.out_dir)
+    # 모델/토크나이저 - 최신 체크포인트 자동 찾기
+    model_path = find_latest_checkpoint(cfg.out_dir)
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
     
     # GPU이면 FP16으로 로드하여 속도/메모리 절약
     dtype = torch.float16 if torch.cuda.is_available() else None
-    model = AutoModelForCausalLM.from_pretrained(cfg.out_dir, torch_dtype=dtype)
+    model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=dtype)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     model.eval()
