@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 import os
 from dataclasses import dataclass
 import pandas as pd
@@ -37,7 +35,7 @@ def train(cfg: TrainConfig):
     train_csv = os.path.join("data", "stsb_train.csv")
     val_csv   = os.path.join("data", "stsb_validation.csv")
     if not (os.path.exists(train_csv) and os.path.exists(val_csv)):
-        raise FileNotFoundError("데이터가 없습니다. 먼저 `prepare` 서브커맨드로 데이터를 준비하세요.")
+        raise FileNotFoundError("데이터가 없습니다. 먼저 `prepare.py`로 데이터를 준비하세요.")
 
     df_train = pd.read_csv(train_csv)
     df_val   = pd.read_csv(val_csv)
@@ -79,7 +77,8 @@ def train(cfg: TrainConfig):
         weight_decay=cfg.weight_decay,
         warmup_ratio=cfg.warmup_ratio,
         logging_steps=50,
-        eval_strategy="epoch",   # 이전 표기
+        eval_strategy="epoch",
+        save_strategy="epoch",
         load_best_model_at_end=True,
         save_total_limit=2,
         seed=cfg.seed,
@@ -101,3 +100,7 @@ def train(cfg: TrainConfig):
     trainer.save_model(cfg.out_dir)
     tokenizer.save_pretrained(cfg.out_dir)
     print(f"[train] Finished. Model saved to: {cfg.out_dir}")
+
+if __name__ == "__main__":
+    config = TrainConfig()
+    train(config)

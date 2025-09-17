@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 import os
 from dataclasses import dataclass
 import pandas as pd
@@ -24,7 +22,7 @@ def predict(cfg: GenConfig):
     # 데이터 로드
     csv_path = os.path.join("data", f"stsb_{cfg.split}.csv")
     if not os.path.exists(csv_path):
-        raise FileNotFoundError(f"{csv_path} 가 없습니다. 먼저 `prepare`를 실행하세요.")
+        raise FileNotFoundError(f"{csv_path} 가 없습니다. 먼저 `prepare.py`를 실행하세요.")
 
     df = pd.read_csv(csv_path)
 
@@ -86,3 +84,7 @@ def predict(cfg: GenConfig):
     })
     out_df.to_csv(out_csv, index=False, encoding="utf-8")
     print(f"[predict] Saved: {out_csv} (overwrite)")
+
+if __name__ == "__main__":
+    config = GenConfig()
+    predict(config)

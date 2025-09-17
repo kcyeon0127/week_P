@@ -1,10 +1,8 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 import os
 from typing import Optional
 import numpy as np
 import pandas as pd
-import evaluate  # 평가 라이브러리
+import evaluate 
 
 def evaluate_file(pred_csv: str, out_csv: Optional[str] = None):
     """BLEU-1~4, ROUGE-L, BERTScore(P/R/F1) 계산"""
@@ -71,3 +69,8 @@ def evaluate_file(pred_csv: str, out_csv: Optional[str] = None):
     print(f"BLEU (sacrebleu): {bleu_res['bleu']:.4f}")
     print(f"ROUGE-L (avg):   {np.mean(rougeL_list):.4f}")
     print(f"BERTScore F1:    {np.mean(bert_F1):.4f}")
+
+if __name__ == "__main__":
+    # 파라미터를 코드 내에서 직접 설정
+    # predict.py 실행 후 생성된 CSV 파일 경로를 지정해야 합니다.
+    evaluate_file(pred_csv="runs/gpt2-stsb/preds_validation.csv")
