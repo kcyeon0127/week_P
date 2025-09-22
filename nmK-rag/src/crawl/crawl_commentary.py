@@ -28,9 +28,9 @@ DB_PATH = os.path.join(STATE_DIR, "crawl_commentary_state.db")
 STATE_FILE = os.path.join(STATE_DIR, "crawl_commentary_state.pkl")
 LOG_FILE = os.path.join(PROJECT_ROOT, "crawl_commentary.log")
 
-# 로깅 설정
+# 로깅 설정 (디버그 모드 활성화)
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler(LOG_FILE, encoding='utf-8'),
@@ -162,21 +162,24 @@ def normalize_url(base: str, href: str) -> str:
         return ""
     return urljoin(base, href.strip())
 
-def validate_content(text: str, title: str) -> bool:
-    """콘텐츠 품질을 검증합니다."""
-    # 최소 길이 체크
-    if len(text.strip()) < 100:
+def validate_content(text: str, title: str, is_seed: bool = False) -> bool:
+    """콘텐츠 품질을 검증합니다. 시드 URL은 더 관대한 기준을 적용합니다."""
+    # 최소 길이 체크 (시드 URL은 더 관대하게)
+    min_len = 50 if is_seed else 100
+    if len(text.strip()) < min_len:
         return False
 
-    # 의미있는 단어 비율 체크
+    # 의미있는 단어 비율 체크 (시드 URL은 더 관대하게)
     words = text.split()
     meaningful_words = [w for w in words if len(w) > 2]
-    if len(meaningful_words) < 10:
+    min_words = 5 if is_seed else 10
+    if len(meaningful_words) < min_words:
         return False
 
-    # 한국어 텍스트 비율 체크
+    # 한국어 텍스트 비율 체크 (시드 URL은 더 관대하게)
     korean_chars = len(re.findall(r'[\u3131-\u314e\u314f-\u3163\uac00-\ud7a3]', text))
-    if len(text) > 0 and korean_chars / len(text) < 0.1:
+    min_korean_ratio = 0.05 if is_seed else 0.1
+    if len(text) > 0 and korean_chars / len(text) < min_korean_ratio:
         return False
 
     return True
@@ -189,12 +192,16 @@ def extract_text(soup: BeautifulSoup) -> str:
     text = re.sub(r"\n{2,}", "\n", text)
     return text
 
-def crawl():
+def crawl(force: bool = False, interactive: bool = False):
     """시작 페이지에서 출발하여, 관련된 전시 해설 페이지만을 크롤링합니다."""
     # 경로 확인 및 디렉토리 생성
     logger.info(f"출력 디렉토리: {os.path.abspath(OUT_DIR)}")
     logger.info(f"상태 디렉토리: {os.path.abspath(STATE_DIR)}")
     logger.info(f"로그 파일: {os.path.abspath(LOG_FILE)}")
+    if force:
+        logger.info("강제 모드: 방문 여부 무시")
+    if interactive:
+        logger.info("대화형 모드: 방문한 페이지 발견 시 사용자에게 문의")
 
     os.makedirs(OUT_DIR, exist_ok=True)
 
@@ -217,10 +224,42 @@ def crawl():
         while queue:
             url = queue.pop(0)
 
-            # URL 방문 여부 확인
-            if url_tracker.is_url_visited(url):
-                pbar.update(0)
-                continue
+            # URL 방문 여부 확인 (강제 모드는 제외)
+            if not force and url_tracker.is_url_visited(url):
+                if interactive:
+                    # 대화형 모드: 사용자에게 재크롤링 여부 문의
+                    print(f"\n이미 방문한 페이지를 발견했습니다:")
+                    print(f"URL: {url}")
+                    print(f"제목: {url.split('/')[-1] if '/' in url else url}")
+
+                    while True:
+                        choice = input("다시 크롤링하시겠습니까? [y]es/[n]o/[a]ll(모든 중복 재크롤링)/[s]kip all(모든 중복 스킵): ").lower().strip()
+
+                        if choice in ['y', 'yes']:
+                            logger.info(f"[USER] 재크롤링 선택: {url}")
+                            break  # 크롤링 계속 진행
+                        elif choice in ['n', 'no']:
+                            logger.debug(f"[USER] 스킵 선택: {url}")
+                            pbar.update(1)
+                            break
+                        elif choice in ['a', 'all']:
+                            logger.info("[USER] 모든 중복 재크롤링 선택")
+                            force = True  # 이후 모든 중복에 대해 강제 모드 적용
+                            break
+                        elif choice in ['s', 'skip', 'skip all']:
+                            logger.info("[USER] 모든 중복 스킵 선택")
+                            interactive = False  # 이후 모든 중복을 자동으로 스킵
+                            pbar.update(1)
+                            break
+                        else:
+                            print("올바른 선택지를 입력해주세요: y/n/a/s")
+
+                    if choice in ['n', 'no'] or not interactive:
+                        continue
+                else:
+                    logger.debug(f"[SKIP] 이미 방문한 URL: {url}")
+                    pbar.update(1)  # 진행바 버그 수정
+                    continue
 
             pbar.set_description(f"Crawling {url[:60]}...")
 
@@ -243,9 +282,12 @@ def crawl():
                 title = soup.title.get_text().strip() if soup.title else url
                 text = extract_text(soup)
 
-                # 콘텐츠 품질 검증
-                if not validate_content(text, title):
-                    logger.warning(f"낮은 품질의 콘텐츠로 스킵: {url}")
+                # 콘텐츠 품질 검증 (시드 URL은 더 관대하게)
+                is_seed = url in SEED_URLS
+                if not validate_content(text, title, is_seed=is_seed):
+                    quality_msg = f"낮은 품질의 콘텐츠로 스킵 {'(시드 URL)' if is_seed else ''}: {url}"
+                    logger.warning(quality_msg)
+                    logger.debug(f"[QUALITY] 제목: {title[:30]}..., 텍스트 길이: {len(text)}")
                     url_tracker.mark_url_visited(url)
                     pbar.update(1)
                     continue
@@ -320,9 +362,69 @@ def crawl():
         logger.info(f"크롤링 완료: 총 {processed_count}개의 페이지를 처리하여 {OUT_DIR} 폴더에 저장했습니다.")
         print(f"\n[완료] 총 {processed_count}개의 페이지를 크롤링하여 {OUT_DIR} 폴더에 저장했습니다.")
 
+
+def show_menu():
+    """대화형 메뉴를 표시하고 사용자 선택을 받습니다."""
+    print("\n" + "="*60)
+    print("🎭  국립중앙박물관 전시 해설 크롤러")
+    print("="*60)
+    print("1. 일반 실행 (이어서 진행)")
+    print("2. 완전히 새로 시작 (기존 데이터 삭제 후 시작)")
+    print("3. 모든 페이지 강제 재크롤링")
+    print("4. 대화형 모드 (중복 발견 시 선택)")
+    print("5. 새로 시작 + 대화형 모드")
+    print("6. 종료")
+    print("="*60)
+
+    while True:
+        try:
+            choice = input("선택하세요 (1-6): ").strip()
+            if choice in ['1', '2', '3', '4', '5', '6']:
+                return int(choice)
+            else:
+                print("⚠️  올바른 번호를 입력해주세요 (1-6)")
+        except (ValueError, KeyboardInterrupt):
+            print("\n종료됩니다.")
+            return 6
+
+
 if __name__ == "__main__":
     try:
-        crawl()
+        choice = show_menu()
+
+        if choice == 6:
+            print("프로그램을 종료합니다.")
+            exit(0)
+
+        # 선택에 따른 매개변수 설정
+        fresh = choice in [2, 5]  # 새로 시작 또는 새로 시작 + 대화형
+        force = choice == 3       # 강제 재크롤링
+        interactive = choice in [4, 5]  # 대화형 모드 또는 새로 시작 + 대화형
+
+        if fresh:
+            print("\n🔄 기존 데이터를 삭제하고 새로 시작합니다...")
+            # DB/상태파일 제거
+            os.makedirs(STATE_DIR, exist_ok=True)
+            try:
+                os.remove(DB_PATH)
+                logger.info("Fresh 모드: 이전 방문 기록 DB 삭제됨")
+            except FileNotFoundError:
+                pass
+            try:
+                os.remove(STATE_FILE)
+                logger.info("Fresh 모드: 이전 상태 파일 삭제됨")
+            except FileNotFoundError:
+                pass
+            logger.info("Fresh 모드: 상태 초기화 완료. 완전히 새로운 크롤링을 시작합니다.")
+        elif force:
+            print("\n⚡ 강제 재크롤링 모드로 실행합니다...")
+        elif interactive:
+            print("\n💬 대화형 모드로 실행합니다...")
+        else:
+            print("\n▶️  일반 모드로 실행합니다...")
+
+        crawl(force=force, interactive=interactive)
+
     except KeyboardInterrupt:
         logger.info("크롤링이 중단되었습니다. 다음 실행 시 이어서 진행됩니다.")
         print("\n크롤링이 중단되었습니다. 다음 실행 시 이어서 진행됩니다.")
