@@ -28,9 +28,9 @@ DB_PATH = os.path.join(STATE_DIR, "crawl_state.db")
 STATE_FILE = os.path.join(STATE_DIR, "crawl_state.pkl")
 LOG_FILE = os.path.join(PROJECT_ROOT, "crawl.log")
 
-# 로깅 설정
+# 로깅 설정 (디버그 모드 활성화)
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler(LOG_FILE, encoding='utf-8'),
@@ -241,12 +241,15 @@ def crawl():
                 time.sleep(random.uniform(1, 3))
 
                 # 재시도 로직이 포함된 요청
+                logger.debug(f"[FETCH] 요청 시작: {url}")
                 r = fetch_with_retry(url)
                 r.raise_for_status()
+                logger.debug(f"[RESP] 상태코드: {r.status_code}, 콘텐츠 길이: {len(r.content)}")
 
                 soup = BeautifulSoup(r.text, "html.parser")
                 title = soup.title.get_text().strip() if soup.title else url
                 text = extract_text(soup)
+                logger.debug(f"[PARSE] 제목: {title[:50]}..., 텍스트 길이: {len(text)}")
 
                 # 콘텐츠 품질 검증
                 if not validate_content(text, title):
@@ -277,8 +280,32 @@ def crawl():
 
                 # 현재 페이지에서 허용된 링크만 추출하여 큐에 추가
                 newly_found = 0
-                for a in soup.find_all("a", href=True):
+                all_links = soup.find_all("a", href=True)
+                logger.debug(f"[LINKS] 총 {len(all_links)}개 링크 발견")
+
+                # 링크 분석 및 필터링 통계
+                link_stats = {
+                    "total": len(all_links),
+                    "same_host": 0,
+                    "not_visited": 0,
+                    "relic_id": 0,
+                    "show_hall_id": 0,
+                    "allowed_hall_id": 0,
+                    "exhi_sp_them_id": 0,
+                    "added_to_queue": 0
+                }
+
+                for a in all_links:
                     nxt = normalize_url(url, a["href"])
+
+                    if not nxt:
+                        continue
+
+                    if is_same_host(SEED_URLS[0], nxt):
+                        link_stats["same_host"] += 1
+
+                    if not url_tracker.is_url_visited(nxt) and nxt not in queue:
+                        link_stats["not_visited"] += 1
 
                     if not (nxt and is_same_host(SEED_URLS[0], nxt) and
                            not url_tracker.is_url_visited(nxt) and nxt not in queue):
@@ -286,27 +313,57 @@ def crawl():
 
                     # 조건 1: 상설 전시의 개별 전시품인가? (relicId)
                     if "relicId=" in nxt:
+                        link_stats["relic_id"] += 1
                         queue.append(nxt)
                         newly_found += 1
+                        link_stats["added_to_queue"] += 1
+                        logger.debug(f"[QUEUE] relicId 링크 추가: {nxt}")
                         continue
 
                     # 조건 2: 허용된 상설 전시관 페이지인가? (showHallId)
                     if "showHallId=" in nxt:
+                        link_stats["show_hall_id"] += 1
                         try:
                             parsed_url = urlparse(nxt)
                             query_params = parse_qs(parsed_url.query)
-                            if 'showHallId' in query_params and query_params['showHallId'][0] in ALLOWED_HALL_IDS:
-                                queue.append(nxt)
-                                newly_found += 1
-                                continue
-                        except Exception:
+                            if 'showHallId' in query_params:
+                                hall_id = query_params['showHallId'][0]
+                                logger.debug(f"[HALL_ID] 발견된 전시관 ID: {hall_id} (허용 목록: {ALLOWED_HALL_IDS})")
+                                if hall_id in ALLOWED_HALL_IDS:
+                                    link_stats["allowed_hall_id"] += 1
+                                    queue.append(nxt)
+                                    newly_found += 1
+                                    link_stats["added_to_queue"] += 1
+                                    logger.debug(f"[QUEUE] showHallId 링크 추가: {nxt}")
+                                    continue
+                                else:
+                                    logger.debug(f"[SKIP] 허용되지 않은 전시관 ID: {hall_id}")
+                        except Exception as e:
+                            logger.debug(f"[ERROR] showHallId 파싱 오류: {e}")
                             continue
 
                     # 조건 3: 특별 전시 상세페이지인가? (exhiSpThemId)
                     if "exhiSpThemId=" in nxt:
+                        link_stats["exhi_sp_them_id"] += 1
                         queue.append(nxt)
                         newly_found += 1
+                        link_stats["added_to_queue"] += 1
+                        logger.debug(f"[QUEUE] exhiSpThemId 링크 추가: {nxt}")
                         continue
+
+                    # 조건 4: 시드 URL과 유사한 전시 관련 페이지인가? (M0201, M0202 포함)
+                    if any(pattern in nxt for pattern in ["/M0201", "/M0202"]):
+                        queue.append(nxt)
+                        newly_found += 1
+                        link_stats["added_to_queue"] += 1
+                        logger.debug(f"[QUEUE] 전시 관련 페이지 링크 추가: {nxt}")
+                        continue
+
+                    # 어떤 조건에도 맞지 않는 링크들 샘플 출력 (처음 5개만)
+                    if link_stats["added_to_queue"] == 0 and len([l for l in all_links[:5] if normalize_url(url, l["href"]) == nxt]) > 0:
+                        logger.debug(f"[FILTERED] 조건 미충족 링크 샘플: {nxt}")
+
+                logger.info(f"[LINK_STATS] {link_stats}")
 
                 if newly_found > 0:
                     pbar.total += newly_found
@@ -323,6 +380,15 @@ def crawl():
                 url_tracker.mark_url_visited(url)
             except Exception as e:
                 logger.error(f"처리 중 예외 발생 {url}: {e}")
+                logger.debug(f"[DEBUG] 예외 상세: ", exc_info=True)
+                # 디버깅을 위한 HTML 저장
+                try:
+                    debug_file = f"/tmp/debug_error_{make_id(url)}.html"
+                    with open(debug_file, "w", encoding="utf-8") as f:
+                        f.write(r.text if 'r' in locals() else "No response")
+                    logger.debug(f"[DEBUG] 오류 HTML 저장: {debug_file}")
+                except:
+                    pass
                 url_tracker.mark_url_visited(url)
 
             pbar.update(1)
