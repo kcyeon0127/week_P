@@ -65,38 +65,151 @@
   - 답변의 근거가 된 컨텍스트와 원문 출처(URL)를 함께 표시합니다.
   - 답변에 대한 정확성, 충분성 등을 평가하고 코멘트를 저장하는 기능을 포함합니다.
 
+## 프로젝트 구조 (업데이트됨)
+
+```
+nmK-rag/
+├── src/
+│   ├── crawl/             # 크롤링 모듈 (새로 구조화됨)
+│   │   ├── __init__.py
+│   │   ├── crawl_utils.py        # 공통 크롤링 유틸리티
+│   │   ├── crawl.py              # 전시 콘텐츠 크롤러
+│   │   ├── crawl_commentary.py   # 해설 안내 크롤러
+│   │   └── crawl_visitor_info.py # 이용 안내 크롤러
+│   ├── __init__.py
+│   ├── clean_chunk.py     # 문서 정제 및 청킹
+│   ├── embed_index.py     # 임베딩 및 인덱싱
+│   ├── eval.py            # 평가 메트릭
+│   ├── llm.py             # 언어 모델 인터페이스
+│   ├── parse_pdf.py       # PDF 처리
+│   ├── rag_chain.py       # RAG 파이프라인
+│   ├── retriever.py       # 문서 검색
+│   └── schema.py          # 데이터 스키마
+├── app.py                 # 웹 애플리케이션
+├── data_raw/              # 크롤링된 원본 데이터 (실행 후 생성)
+├── crawl_state/           # 크롤링 상태 및 로그 (실행 후 생성)
+└── README.md
+```
+
+## 설정 및 실행 가이드
+
+### 전제 조건
+- Python 3.8+
+- 필수 패키지: `requests`, `beautifulsoup4`, `tenacity`, `tqdm`, `pydantic`, `sqlite3`
+
+### 설치
+
+1. **의존성 설치**:
+```bash
+pip install requests beautifulsoup4 tenacity tqdm pydantic streamlit
+```
+
 ## 전체 데이터 구축 워크플로우
 
-1.  **의존성 설치**:
-    ```bash
-    pip install -r requirements.txt
-    ```
+### 1단계: 웹 크롤링 (개선된 버전)
 
-2.  **데이터 수집 실행**:
-    - `crawl.py`는 전시 정보, `crawl_commentary.py`는 전시 해설 정보를 수집합니다. 필요에 따라 선택적으로 또는 둘 다 실행할 수 있습니다.
-    - (선택) 각 스크립트 파일을 열어 크롤링 대상을 수정합니다.
-    ```bash
-    # 전시 정보 수집
-    python src/crawl.py
+이제 세 가지 전문화된 크롤러를 제공합니다:
 
-    # 전시 해설 정보 수집
-    python src/crawl_commentary.py
-    ```
-    - 실행이 완료되면 `data_raw` 폴더에 JSON 파일들이 생성됩니다.
+#### A. 전시 콘텐츠 크롤러
+상설전시, 특별전시, 유물 정보를 수집합니다.
 
-3.  **데이터 정제 및 분할 실행**:
-    ```bash
-    python src/clean_chunk.py data_raw
-    ```
-    - `data_raw` 폴더의 모든 json을 처리하여 `data_curated/chunks.jsonl` 파일을 생성합니다.
+```bash
+cd src/crawl
+python crawl.py
+```
 
-4.  **임베딩 및 인덱스 생성 실행**:
-    ```bash
-    python src/embed_index.py
-    ```
-    - `chunks.jsonl` 파일을 읽어 `index/chroma` 디렉토리에 벡터 인덱스를 생성합니다.
+#### B. 전시 해설 크롤러
+전시 해설, 가이드 투어, 접근성 정보를 수집합니다.
 
-5.  **애플리케이션 실행**:
-    ```bash
-    streamlit run app.py
-    ```
+```bash
+cd src/crawl
+python crawl_commentary.py
+```
+
+#### C. 이용 안내 크롤러
+관람 안내, 접근성 정보, 교통 정보를 수집합니다.
+
+```bash
+cd src/crawl
+python crawl_visitor_info.py
+```
+
+#### 🔥 개선된 크롤링 기능들:
+- **스마트 중복 제거**: URL과 콘텐츠 기반 중복 검사
+- **재개 가능한 크롤링**: 중단되어도 이어서 진행 가능
+- **속도 제한**: robots.txt 준수 및 지능적 대기
+- **견고한 오류 처리**: 지수 백오프 자동 재시도
+- **품질 필터링**: 저품질 콘텐츠 자동 제외
+- **포괄적 로깅**: 모니터링 및 디버깅용 상세 로그
+- **메모리 효율성**: 대규모 크롤링을 위한 SQLite 기반 추적
+
+#### 크롤링 출력:
+- 원본 데이터: `data_raw/` 디렉토리
+- 크롤링 상태 및 로그: `crawl_state/` 디렉토리
+- 각 문서는 메타데이터와 함께 JSON으로 저장
+
+### 2단계: 데이터 정제 및 분할
+```bash
+python src/clean_chunk.py data_raw
+```
+- `data_raw` 폴더의 모든 JSON을 처리하여 `data_curated/chunks.jsonl` 파일 생성
+
+### 3단계: 임베딩 및 인덱스 생성
+```bash
+python src/embed_index.py
+```
+- `chunks.jsonl` 파일을 읽어 `index/chroma` 디렉토리에 벡터 인덱스 생성
+
+### 4단계: 애플리케이션 실행
+```bash
+streamlit run app.py
+```
+- 웹 인터페이스에서 RAG 기반 질의응답 시스템 사용
+
+## 모니터링 및 디버깅
+
+### 크롤링 진행 상황 확인
+```bash
+# 실시간 로그 확인
+tail -f crawl.log
+tail -f crawl_commentary.log
+tail -f crawl_visitor_info.log
+```
+
+### 크롤링 통계
+크롤러들은 다음과 같은 상세 통계를 제공합니다:
+- 성공적으로 처리된 페이지 수
+- 중복 콘텐츠/URL로 스킵된 수
+- 실패한 요청 수
+- 처리 속도
+- 품질 필터링 결과
+
+## 고급 설정
+
+크롤링 동작을 유틸리티 클래스를 사용해 사용자 정의할 수 있습니다:
+
+```python
+from src.crawl.crawl_utils import CrawlConfig, URLTracker, CrawlStats
+
+# 사용자 정의 설정
+config = CrawlConfig(
+    out_dir="custom_data",
+    min_delay=2.0,      # 더 느린 크롤링
+    max_delay=5.0,
+    min_content_length=200  # 더 높은 품질 기준
+)
+```
+
+## 문제 해결
+
+### 일반적인 문제들
+
+1. **크롤링 중단**: 같은 크롤러를 다시 실행하면 중단된 지점부터 재개됩니다
+2. **속도 제한**: 크롤러가 자동으로 처리하지만, 설정에서 대기 시간을 조정할 수 있습니다
+3. **메모리 문제**: 대용량 크롤링을 위해 SQLite를 사용해 메모리를 효율적으로 관리합니다
+4. **콘텐츠 품질**: 필요시 `validate_content()` 함수에서 품질 기준을 조정할 수 있습니다
+
+### 로그 및 디버깅
+- 크롤링 로그: `crawl.log`, `crawl_commentary.log`, `crawl_visitor_info.log`
+- 상태 파일: `crawl_state/` 디렉토리
+- 데이터베이스 파일: `crawl_state/*.db`
