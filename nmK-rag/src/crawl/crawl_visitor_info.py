@@ -13,20 +13,27 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 from tqdm import tqdm
 from tenacity import retry, stop_after_attempt, wait_exponential
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 from src.schema import Doc, make_id
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (Research/Student Project; gimchaeyeon-nmk-rag)"}
-OUT_DIR = "data_raw"
-STATE_DIR = "crawl_state"
+
+# 프로젝트 루트 경로 설정
+PROJECT_ROOT = os.path.join(os.path.dirname(__file__), '../..')
+OUT_DIR = os.path.join(PROJECT_ROOT, "data_raw")
+STATE_DIR = os.path.join(PROJECT_ROOT, "crawl_state")
 DB_PATH = os.path.join(STATE_DIR, "crawl_visitor_info_state.db")
 STATE_FILE = os.path.join(STATE_DIR, "crawl_visitor_info_state.pkl")
+LOG_FILE = os.path.join(PROJECT_ROOT, "crawl_visitor_info.log")
 
 # 로깅 설정
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('crawl_visitor_info.log'),
+        logging.FileHandler(LOG_FILE, encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
@@ -184,6 +191,11 @@ def extract_text(soup: BeautifulSoup) -> str:
 
 def crawl():
     """시작 페이지에서 출발하여, 관련된 이용 안내 페이지만을 크롤링합니다."""
+    # 경로 확인 및 디렉토리 생성
+    logger.info(f"출력 디렉토리: {os.path.abspath(OUT_DIR)}")
+    logger.info(f"상태 디렉토리: {os.path.abspath(STATE_DIR)}")
+    logger.info(f"로그 파일: {os.path.abspath(LOG_FILE)}")
+
     os.makedirs(OUT_DIR, exist_ok=True)
 
     # URL 추적 및 상태 관리 초기화
