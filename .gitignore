@@ -14,3 +14,12 @@ __pycache__/
 
 W_6/data/
 W_6/runs/
+
+# nmK-rag 프로젝트 - 크롤링된 데이터 및 상태 파일들
+nmK-rag/data_raw/
+nmK-rag/crawl_state/
+nmK-rag/data_curated/
+nmK-rag/index/
+
+# nmK-rag 프로젝트 - 크롤링 로그 파일들
+nmK-rag/*.log
