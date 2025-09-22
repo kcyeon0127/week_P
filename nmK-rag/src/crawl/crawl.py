@@ -265,7 +265,8 @@ def crawl():
                 # 문서 저장
                 doc = Doc(doc_id=make_id(url), url=url, title=title, text=text, doctype="web", lang="ko")
                 with open(os.path.join(OUT_DIR, f"{doc.doc_id}.json"), "w", encoding="utf-8") as f:
-                    f.write(doc.model_dump_json(ensure_ascii=False, indent=2))
+                    import json
+                    f.write(json.dumps(doc.model_dump(), ensure_ascii=False, indent=2))
 
                 # URL 및 콘텐츠 처리 완료 표시
                 url_tracker.mark_url_visited(url)
