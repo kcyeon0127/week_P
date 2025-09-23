@@ -1,6 +1,10 @@
-import json, argparse, re
+import json, argparse, re, sys
 from pathlib import Path
 from typing import List, Tuple
+
+if __package__ in (None, ""):
+    sys.path.append(str(Path(__file__).resolve().parents[1]))
+
 from src.schema import Doc, Chunk, make_id
 from src.curate_docs import clean_doc
 from tqdm import tqdm

@@ -1,8 +1,12 @@
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
+
+if __package__ in (None, ""):
+    sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from src.schema import Doc
 
