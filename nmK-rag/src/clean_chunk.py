@@ -1,9 +1,11 @@
-import os, glob, json, argparse, re
-from typing import List
+import json, argparse, re
+from pathlib import Path
+from typing import List, Tuple
 from src.schema import Doc, Chunk, make_id
+from src.curate_docs import clean_doc
 from tqdm import tqdm
 
-def split_into_chunks(text: str, min_chars=400, max_chars=1200) -> List[str]:
+def split_into_chunks(text: str, min_chars=400, max_chars=1200) -> List[Tuple[str, int, int]]:
     # 문단 단위로 먼저 자르고 합치기
     paras = [p.strip() for p in re.split(r"\n{2,}", text) if p.strip()]
     chunks, cur = [], ""
@@ -37,34 +39,50 @@ def split_into_chunks(text: str, min_chars=400, max_chars=1200) -> List[str]:
             merged[-1] = (merged[-1] + "\n\n" + c).strip()
         else:
             merged.append(c)
-    return merged
+    chunks_with_range: List[Tuple[str, int, int]] = []
+    search_pos = 0
+    for chunk_text in merged:
+        idx = text.find(chunk_text, search_pos)
+        if idx == -1:
+            idx = text.find(chunk_text)
+            if idx == -1:
+                idx = search_pos
+        start = idx
+        end = idx + len(chunk_text)
+        chunks_with_range.append((chunk_text, start, end))
+        search_pos = end
+    return chunks_with_range
 
 def main(in_dir: str, out_jsonl: str):
-    files = glob.glob(os.path.join(in_dir, "*.json"))
-    os.makedirs(os.path.dirname(out_jsonl), exist_ok=True)
-    w = open(out_jsonl, "w", encoding="utf-8")
+    files = sorted(Path(in_dir).rglob("*.json"))
+    out_path = Path(out_jsonl)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     total = 0
-    for fp in tqdm(files):
-        data = json.load(open(fp, "r", encoding="utf-8"))
-        doc = Doc(**data)
-        chunks = split_into_chunks(doc.text)
-        for i, txt in enumerate(chunks):
-            ch = Chunk(
-                chunk_id = make_id(f"{doc.doc_id}-{i}"),
-                doc_id = doc.doc_id,
-                title = doc.title,
-                url = doc.url,
-                section = doc.section,
-                doctype = doc.doctype,
-                lang = doc.lang,
-                chunk_index = i,
-                char_range = [0, len(txt)],
-                text = txt,
-                meta = {"source": fp}
-            )
-            w.write(ch.model_dump_json(ensure_ascii=False) + "\n")
-            total += 1
-    w.close()
+    with out_path.open("w", encoding="utf-8") as w:
+        for fp in tqdm(files):
+            with fp.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+            doc = Doc(**data)
+            doc = clean_doc(doc)
+            if not doc.text.strip():
+                continue
+            chunks = split_into_chunks(doc.text)
+            for i, (txt, start, end) in enumerate(chunks):
+                ch = Chunk(
+                    chunk_id = make_id(f"{doc.doc_id}-{i}"),
+                    doc_id = doc.doc_id,
+                    title = doc.title,
+                    url = doc.url,
+                    section = doc.section,
+                    doctype = doc.doctype,
+                    lang = doc.lang,
+                    chunk_index = i,
+                    char_range = [start, end],
+                    text = txt,
+                    meta = {"source": str(fp)}
+                )
+                w.write(ch.model_dump_json(ensure_ascii=False) + "\n")
+                total += 1
     print(f"[done] wrote {total} chunks to {out_jsonl}")
 
 if __name__ == "__main__":
