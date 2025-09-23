@@ -1,11 +1,10 @@
 from __future__ import annotations
-import os, json
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 import chromadb
 from chromadb.config import Settings
 from rank_bm25 import BM25Okapi
 from sentence_transformers import CrossEncoder
-from transformers import AutoTokenizer
+from sentence_transformers import SentenceTransformer
 from dataclasses import dataclass
 
 @dataclass
@@ -14,25 +13,47 @@ class Retrieved:
     score: float
     meta: Dict[str, Any]
 
+QUERY_PROMPT = "query"
+PASSAGE_PROMPT = "passage"
+
+
 class HybridRetriever:
-    def __init__(self, persist_dir="index/chroma", collection="nmK",
-                 reranker:str|None="cross-encoder/ms-marco-MiniLM-L-6-v2"):
+    def __init__(
+        self,
+        persist_dir: str = "index/chroma",
+        collection: str = "nmK",
+        embedding_model: str | None = None,
+        reranker: str | None = "cross-encoder/ms-marco-MiniLM-L-6-v2",
+    ):
         self.client = chromadb.PersistentClient(path=persist_dir, settings=Settings(allow_reset=False))
         self.col = self.client.get_collection(collection)
         self._docs_cache: List[str] = []
-        self._metas_cache: List[Dict[str,Any]] = []
+        self._metas_cache: List[Dict[str, Any]] = []
         # build BM25 corpus once
-        res = self.col.get(include=["documents","metadatas","embeddings"])
+        res = self.col.get(include=["documents", "metadatas"])
         self._docs_cache = res["documents"]
         self._metas_cache = res["metadatas"]
         self.bm25 = BM25Okapi([d.split() for d in self._docs_cache])
         self.reranker = CrossEncoder(reranker) if reranker else None
+        if embedding_model is None:
+            embedding_model = (self.col.metadata or {}).get("embedding_model", "BAAI/bge-m3")
+        self.encoder = SentenceTransformer(embedding_model, trust_remote_code=True)
 
     def dense_search(self, query: str, k: int = 30) -> List[Retrieved]:
-        q = self.col.query(query_texts=[query], n_results=k, include=["documents","metadatas","distances"])
-        out=[]
+        query_vec = self.encoder.encode(
+            [query],
+            normalize_embeddings=True,
+            prompt_name=QUERY_PROMPT,
+            show_progress_bar=False,
+        )
+        q = self.col.query(
+            query_embeddings=query_vec,
+            n_results=k,
+            include=["documents", "metadatas", "distances"],
+        )
+        out = []
         for txt, meta, dist in zip(q["documents"][0], q["metadatas"][0], q["distances"][0]):
-            out.append(Retrieved(text=txt, score=1.0 - dist, meta=meta))
+            out.append(Retrieved(text=txt, score=1.0 - float(dist), meta=meta))
         return out
 
     def bm25_search(self, query: str, k: int = 50) -> List[Retrieved]:
