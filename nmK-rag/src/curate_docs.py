@@ -17,6 +17,11 @@ NOISE_LINES = {
     "국립중앙박물관>전시>상설 전시>조각·공예관>도자공예-분청사기-백자실",
     "국립중앙박물관>전시>특별 전시>지난 전시",
     "관람 정보",
+    "조각·공예관",
+    "불교조각",
+    "기증관",
+    "기증2",
+    "확대보기",
     "QR코드",
     "현재 페이지의 QR코드 입니다.",
     "주소복사",
@@ -27,6 +32,12 @@ NOISE_LINES = {
     "페이스북",
     "Home",
     "전시해설",
+    "수어",
+    "동영상 바로가기",
+    "특별 전시",
+    "현재 전시",
+    "예정 전시",
+    "특별전",
     "소장품",
     "소장품 검색",
     "전시",
@@ -43,8 +54,16 @@ NOISE_LINES = {
     "소장품 바로가기",
     "목록",
     "예약내역 확인",
+    "페이지",
+    "회차명",
+    "진행일시",
+    "신청단체수",
+    "신청하기",
+    "대기단체수",
+    "주중(월~금) 프로그램 신청 안내",
     "TOP",
     "3D보기",
+    "총",
 }
 
 NOISE_CONTAINS = (
@@ -58,6 +77,13 @@ NOISE_CONTAINS = (
     "이전 이미지",
     "다음 이미지",
     "이미지입니다",
+    "내려받기",
+    "누리집",
+    "전화 문의",
+    "문의 :",
+    "문의:",
+    "회차정보를",
+    "검색되었습니다",
 )
 
 BULLET_PREFIXES = ("ㅇ", "-", "•", "*", "ㆍ")
@@ -146,6 +172,19 @@ def clean_doc_text(text: str) -> Tuple[str, Optional[str]]:
             continue
         line = re.sub(r"\s+", " ", line)
 
+        for postfix in [" 내려받기"]:
+            if line.endswith(postfix):
+                line = line[: -len(postfix)].rstrip()
+
+        if line == "/":
+            continue
+        if re.fullmatch(r"\d+", line):
+            continue
+        if re.fullmatch(r"\d+\s*/\s*\d+", line):
+            continue
+        if re.match(r"^총\s*\d+\s*건", line):
+            continue
+
         if _is_navigation(line):
             continue
         if line in NOISE_LINES:
@@ -185,6 +224,13 @@ def clean_doc_text(text: str) -> Tuple[str, Optional[str]]:
                 normalized.append(f"- {bullet_value}")
             else:
                 value_buffer.append(f"- {bullet_value}")
+            continue
+
+        if pending_label and any(
+            line.startswith(f"{lbl}:") for lbl in FIELD_LABELS
+        ):
+            flush_pending()
+            normalized.append(line)
             continue
 
         label = next(
