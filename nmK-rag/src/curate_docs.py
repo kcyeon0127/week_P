@@ -236,10 +236,14 @@ def curate_folder(input_dir: Path, output_dir: Path) -> int:
     return count
 
 
+DEFAULT_INPUT_DIR = Path(__file__).resolve().parents[1] / "data_raw"
+DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parents[1] / "data_curated"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="크롤링 문서를 정제해 data_curated에 저장합니다.")
-    parser.add_argument("input_dir", help="원본 JSON 디렉터리 (예: data_raw)")
-    parser.add_argument("output_dir", help="정제본을 저장할 디렉터리 (예: data_curated)")
+    parser.add_argument("input_dir", nargs="?", default=str(DEFAULT_INPUT_DIR), help="원본 JSON 디렉터리 (예: data_raw)")
+    parser.add_argument("output_dir", nargs="?", default=str(DEFAULT_OUTPUT_DIR), help="정제본을 저장할 디렉터리 (예: data_curated)")
     args = parser.parse_args()
 
     in_dir = Path(args.input_dir)

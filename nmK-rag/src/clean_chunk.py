@@ -9,6 +9,9 @@ from src.schema import Doc, Chunk, make_id
 from src.curate_docs import clean_doc
 from tqdm import tqdm
 
+DEFAULT_INPUT_DIR = Path(__file__).resolve().parents[1] / "data_curated"
+DEFAULT_OUTPUT_FILE = DEFAULT_INPUT_DIR / "chunks.jsonl"
+
 def split_into_chunks(text: str, min_chars=400, max_chars=1200) -> List[Tuple[str, int, int]]:
     # 문단 단위로 먼저 자르고 합치기
     paras = [p.strip() for p in re.split(r"\n{2,}", text) if p.strip()]
@@ -92,7 +95,7 @@ def main(in_dir: str, out_jsonl: str):
 if __name__ == "__main__":
     import argparse
     ap = argparse.ArgumentParser()
-    ap.add_argument("in_dir", help="data_curated or data_raw/web etc.")
-    ap.add_argument("-o", "--out", default="data_curated/chunks.jsonl")
+    ap.add_argument("in_dir", nargs="?", default=str(DEFAULT_INPUT_DIR), help="data_curated or data_raw/web etc.")
+    ap.add_argument("-o", "--out", default=str(DEFAULT_OUTPUT_FILE))
     args = ap.parse_args()
     main(args.in_dir, args.out)
