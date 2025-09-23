@@ -88,7 +88,8 @@ def main(in_dir: str, out_jsonl: str):
                     text = txt,
                     meta = {"source": str(fp)}
                 )
-                w.write(ch.model_dump_json(ensure_ascii=False) + "\n")
+                payload = json.dumps(ch.model_dump(mode="json"), ensure_ascii=False)
+                w.write(payload + "\n")
                 total += 1
     print(f"[done] wrote {total} chunks to {out_jsonl}")
 
