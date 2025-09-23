@@ -27,7 +27,7 @@ def split_into_chunks(text: str, min_chars=400, max_chars=1200) -> List[Tuple[st
                 cur = p
             else:
                 # 너무 긴 단락은 문장 단위로 추가 분할
-                sents = re.split(r"(?<=[.!?]|[.!?]\”) +", p)
+                sents = re.split(r"(?<=[.!?…])\s+", p)
                 buf = ""
                 for s in sents:
                     if len(buf) + len(s) + 1 <= max_chars:
