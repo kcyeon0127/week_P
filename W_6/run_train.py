@@ -13,7 +13,7 @@ from utils import build_example
 class TrainConfig:
     out_dir: str = "runs/gpt2-stsb"
     model_name: str = "gpt2"
-    epochs: int = 3
+    epochs: int = 2
     batch_size: int = 8
     lr: float = 5e-5
     weight_decay: float = 0.01

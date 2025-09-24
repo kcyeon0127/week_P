@@ -4,6 +4,7 @@ import pandas as pd
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import os
+from utils_checkpoint import find_latest_checkpoint
 
 # --------------------------
 # Utilities from week6_gpt2_stsb.py
@@ -19,9 +20,9 @@ def build_prompt(s1: str) -> str:
 # --------------------------
 # Streamlit App
 # --------------------------
-DATA_DIR = "runs/gpt2-stsb"
-MODEL_DIR = "runs/gpt2-stsb/checkpoint-900"
-EVAL_CSV_PATH = os.path.join(DATA_DIR, "eval_validation.csv")
+BASE_DIR = "runs/gpt2-stsb"
+MODEL_DIR = find_latest_checkpoint(BASE_DIR)
+EVAL_CSV_PATH = os.path.join(BASE_DIR, "eval_validation.csv")
 
 @st.cache_resource
 def load_model_and_tokenizer():
