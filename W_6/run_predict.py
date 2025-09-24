@@ -61,11 +61,9 @@ def predict(cfg: GenConfig):
             outputs = model.generate(
                 **enc,
                 max_new_tokens=cfg.max_new_tokens,
-                do_sample=True,
-                top_k=cfg.top_k,
-                top_p=cfg.top_p,
-                temperature=cfg.temperature,
-                num_return_sequences=1,  # 배치-프롬프트 매칭 단순화
+                num_beams=5,
+                no_repeat_ngram_size=2,
+                early_stopping=True,
                 pad_token_id=tokenizer.eos_token_id,
                 eos_token_id=tokenizer.eos_token_id,
             )
