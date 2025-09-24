@@ -12,6 +12,7 @@ import pickle
 import logging
 from pathlib import Path
 from urllib.robotparser import RobotFileParser
+from datetime import datetime, date
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
@@ -355,3 +356,160 @@ class CrawlStats:
         print(f"소요 시간: {stats['elapsed_time_seconds']:.2f}초")
         print(f"처리 속도: {stats['pages_per_second']:.2f}페이지/초")
         print("="*50)
+
+
+# ======================================================================================
+# 전시 상태 판단 유틸리티
+# ======================================================================================
+
+def parse_exhibition_date(date_text: str) -> tuple[date | None, date | None]:
+    """전시 기간 텍스트를 파싱하여 시작일과 종료일을 반환합니다.
+
+    Args:
+        date_text: "2010년 3월 23일 ~ 2010년 7월 25일" 형태의 텍스트
+
+    Returns:
+        (시작일, 종료일) 튜플. 파싱 실패시 (None, None)
+    """
+    if not date_text:
+        return None, None
+
+    # 다양한 날짜 형식 패턴들
+    patterns = [
+        # 2010년 3월 23일 ~ 2010년 7월 25일
+        r'(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*~\s*(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일',
+        # 2010.3.23 ~ 2010.7.25
+        r'(\d{4})\.(\d{1,2})\.(\d{1,2})\s*~\s*(\d{4})\.(\d{1,2})\.(\d{1,2})',
+        # 2010-03-23 ~ 2010-07-25
+        r'(\d{4})-(\d{1,2})-(\d{1,2})\s*~\s*(\d{4})-(\d{1,2})-(\d{1,2})',
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, date_text)
+        if match:
+            try:
+                start_year, start_month, start_day, end_year, end_month, end_day = map(int, match.groups())
+                start_date = date(start_year, start_month, start_day)
+                end_date = date(end_year, end_month, end_day)
+                return start_date, end_date
+            except ValueError:
+                continue
+
+    # 단일 날짜 패턴 (시작일만 있는 경우)
+    single_patterns = [
+        r'(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일',
+        r'(\d{4})\.(\d{1,2})\.(\d{1,2})',
+        r'(\d{4})-(\d{1,2})-(\d{1,2})',
+    ]
+
+    for pattern in single_patterns:
+        match = re.search(pattern, date_text)
+        if match:
+            try:
+                year, month, day = map(int, match.groups())
+                parsed_date = date(year, month, day)
+                return parsed_date, None
+            except ValueError:
+                continue
+
+    return None, None
+
+
+def get_exhibition_status(start_date: date | None, end_date: date | None, today: date = None) -> str:
+    """전시 상태를 판단합니다.
+
+    Args:
+        start_date: 전시 시작일
+        end_date: 전시 종료일
+        today: 기준 날짜 (기본: 오늘)
+
+    Returns:
+        'current', 'ended', 'upcoming', 'unknown' 중 하나
+    """
+    if today is None:
+        today = date.today()
+
+    if not start_date:
+        return 'unknown'
+
+    if not end_date:
+        # 종료일이 없으면 시작일만으로 판단
+        if start_date <= today:
+            return 'current'
+        else:
+            return 'upcoming'
+
+    # 시작일과 종료일 모두 있는 경우
+    if today < start_date:
+        return 'upcoming'
+    elif start_date <= today <= end_date:
+        return 'current'
+    else:
+        return 'ended'
+
+
+def extract_exhibition_info(text: str) -> dict:
+    """텍스트에서 전시 관련 정보를 추출합니다.
+
+    Args:
+        text: 웹페이지 텍스트
+
+    Returns:
+        전시 정보 딕셔너리
+    """
+    info = {
+        'exhibition_period': None,
+        'exhibition_status': 'unknown',
+        'start_date': None,
+        'end_date': None,
+        'venue': None,
+        'artifact_count': None
+    }
+
+    # 전시기간 추출
+    period_patterns = [
+        r'전시기간[:\s]*([^\n]+)',
+        r'기간[:\s]*([^\n]+)',
+        r'(\d{4}년[^~]+~[^년]+년[^\n]+)',
+    ]
+
+    for pattern in period_patterns:
+        match = re.search(pattern, text)
+        if match:
+            period_text = match.group(1).strip()
+            info['exhibition_period'] = period_text
+
+            # 날짜 파싱
+            start_date, end_date = parse_exhibition_date(period_text)
+            info['start_date'] = start_date.isoformat() if start_date else None
+            info['end_date'] = end_date.isoformat() if end_date else None
+            info['exhibition_status'] = get_exhibition_status(start_date, end_date)
+            break
+
+    # 전시장소 추출
+    venue_patterns = [
+        r'전시장소[:\s]*([^\n]+)',
+        r'장소[:\s]*([^\n]+)',
+        r'진행장소[:\s]*([^\n]+)',
+    ]
+
+    for pattern in venue_patterns:
+        match = re.search(pattern, text)
+        if match:
+            info['venue'] = match.group(1).strip()
+            break
+
+    # 전시유물 수 추출
+    artifact_patterns = [
+        r'전시유물[:\s]*(\d+)점',
+        r'유물[:\s]*(\d+)점',
+        r'작품[:\s]*(\d+)점',
+    ]
+
+    for pattern in artifact_patterns:
+        match = re.search(pattern, text)
+        if match:
+            info['artifact_count'] = int(match.group(1))
+            break
+
+    return info

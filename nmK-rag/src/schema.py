@@ -12,7 +12,7 @@ class Doc(BaseModel):
     url: Optional[str] = None
     title: str
     lang: str = "ko"
-    doctype: str = "web" # web|pdf|faq|artifact
+    doctype: str = "web" # web|pdf|faq|artifact|exhibition
     section: Optional[str] = None
     published_at: Optional[str] = None
     last_seen: str = Field(default_factory=lambda: datetime.utcnow().strftime("%Y-%m-%d"))
@@ -20,6 +20,13 @@ class Doc(BaseModel):
     tables: Optional[List[Dict[str, str]]] = None
     breadcrumbs: Optional[List[str]] = None
     license_note: Optional[str] = None
+    # 전시 관련 필드들
+    exhibition_period: Optional[str] = None
+    exhibition_status: Optional[str] = None  # current|ended|upcoming|unknown
+    start_date: Optional[str] = None  # ISO format date
+    end_date: Optional[str] = None    # ISO format date
+    venue: Optional[str] = None
+    artifact_count: Optional[int] = None
 
 class Chunk(BaseModel):
     chunk_id: str
