@@ -14,7 +14,7 @@ class Retrieved:
     meta: Dict[str, Any]
 
 QUERY_PROMPT = "query"
-PASSAGE_PROMPT = "passage"
+PASSAGE_PROMPT = "document"
 
 
 class HybridRetriever:

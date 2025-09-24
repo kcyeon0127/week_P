@@ -14,7 +14,7 @@ from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 
 DEF_EMB = "BAAI/bge-m3"  # 한국어/다국어 임베딩
-PASSAGE_PROMPT = "passage"
+PASSAGE_PROMPT = "document"
 
 
 def _batched(items: Iterable[dict], size: int) -> Iterator[List[dict]]:
