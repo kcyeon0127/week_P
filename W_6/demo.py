@@ -19,8 +19,9 @@ def build_prompt(s1: str) -> str:
 # --------------------------
 # Streamlit App
 # --------------------------
-MODEL_DIR = "runs/gpt2-stsb"
-EVAL_CSV_PATH = os.path.join(MODEL_DIR, "eval_validation.csv")
+DATA_DIR = "runs/gpt2-stsb"
+MODEL_DIR = "runs/gpt2-stsb/checkpoint-900"
+EVAL_CSV_PATH = os.path.join(DATA_DIR, "eval_validation.csv")
 
 @st.cache_resource
 def load_model_and_tokenizer():
@@ -49,19 +50,29 @@ def generate_prediction(model, tokenizer, text):
     enc = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True).to(device)
     
     with torch.no_grad():
+        # outputs = model.generate(
+        #     **enc,
+        #     max_new_tokens=64,
+        #     do_sample=True,
+        #     top_k=50,
+        #     top_p=0.95,
+        #     temperature=0.8,
+        #     num_return_sequences=1,
+        #     pad_token_id=tokenizer.eos_token_id,
+        #     eos_token_id=tokenizer.eos_token_id,
+        # )
         outputs = model.generate(
             **enc,
             max_new_tokens=64,
-            do_sample=True,
-            top_k=50,
-            top_p=0.95,
-            temperature=0.8,
-            num_return_sequences=1,
+            num_beams=5,  # Beam search 사용
+            no_repeat_ngram_size=2, # 같은 구문 반복 방지
+            early_stopping=True, # 문장이 끝나면 생성 중단
             pad_token_id=tokenizer.eos_token_id,
             eos_token_id=tokenizer.eos_token_id,
-        )
-    
+            )
     decoded = tokenizer.batch_decode(outputs, skip_special_tokens=True)
+    
+    print(f"Raw generated text: {decoded[0]}")
     
     if decoded and decoded[0].startswith(prompt):
         return decoded[0][len(prompt):].strip()
