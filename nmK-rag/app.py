@@ -12,7 +12,8 @@ st.set_page_config(
 
 # 헤더
 st.title("🏛️ 국립중앙박물관 AI 도슨트")
-st.caption("친절한 AI 도슨트가 전시, 관람, 유물에 대해 자세히 안내해 드립니다 ✨")
+current_date = datetime.now().strftime("%Y년 %m월 %d일")
+st.caption(f"친절한 AI 도슨트가 전시, 관람, 유물에 대해 자세히 안내해 드립니다 ✨ (기준일: {current_date})")
 
 # 추천 질문 섹션
 st.markdown("---")
@@ -52,12 +53,21 @@ with st.sidebar:
     st.subheader("📊 검색 설정")
     k = st.slider("검색 결과 개수", 3, 10, 6, 1)
 
+    # 시간 우선순위 설정
+    st.subheader("⏰ 시간 우선순위")
+    time_priority = st.radio(
+        "정보 우선순위",
+        ["🔥 현재 정보 우선", "📚 모든 정보 포함", "🕰️ 과거 정보 포함"],
+        index=0,
+        help="현재 정보 우선: 입장료/운영시간 등 현재 유효한 정보만 제공"
+    )
+
     # 필터링 옵션
     st.subheader("🎯 관심 분야 필터")
     exhibition_filter = st.multiselect(
         "전시 유형",
         ["현재전시", "예정전시", "지난전시", "순회전시"],
-        default=[]
+        default=["현재전시", "예정전시"] if time_priority == "🔥 현재 정보 우선" else []
     )
 
     content_filter = st.multiselect(
@@ -143,10 +153,25 @@ def render_sources(sources):
 
 if ask and q.strip():
     rag = st.session_state.rag
-    ctx = rag.retrieve(q, k=k)
+
+    # 시간 우선순위 설정에 따라 검색 조정
+    if time_priority == "🔥 현재 정보 우선":
+        # 현재 정보 우선 모드: RAG 내부 필터링 활성화
+        ctx = rag.retrieve(q, k=k)
+    else:
+        # 모든 정보 포함 모드: 필터링 비활성화를 위해 과거 키워드 추가
+        modified_q = q + " 지난"  # 필터링을 우회하기 위한 트릭
+        ctx = rag.retrieve(modified_q, k=k)
+
     ans = rag.generate(q, ctx)
     st.session_state.chat.append({"role":"user","content":q})
-    st.session_state.chat.append({"role":"assistant","content":ans.text, "ctx":ctx, "sources":ans.sources})
+    st.session_state.chat.append({
+        "role":"assistant",
+        "content":ans.text,
+        "ctx":ctx,
+        "sources":ans.sources,
+        "time_priority": time_priority
+    })
 
 # 대화 히스토리 표시
 if st.session_state.chat:
@@ -158,6 +183,11 @@ for turn in st.session_state.chat:
             st.write(f"**질문:** {turn['content']}")
     else:
         with st.chat_message("assistant", avatar="🏛️"):
+            # 시간 우선순위 표시
+            priority = turn.get('time_priority', '📚 모든 정보 포함')
+            if priority == "🔥 현재 정보 우선":
+                st.caption("🔥 현재 유효한 정보를 우선하여 답변했습니다")
+
             st.write(f"**AI 도슨트:** {turn['content']}")
 
             # 문서 유형별 컨텍스트 그룹화
@@ -176,6 +206,7 @@ for turn in st.session_state.chat:
                         'web-visitor': '🚇 이용안내'
                     }
 
+                    turn_idx = len(st.session_state.chat)  # 현재 대화 순서
                     for doctype, docs in ctx_by_type.items():
                         type_name = doctype_names.get(doctype, f"📄 {doctype}")
                         st.markdown(f"**{type_name}**")
@@ -184,7 +215,9 @@ for turn in st.session_state.chat:
                                 st.markdown(f"**[{i}] {c['title']}** (신뢰도: {c['score']:.3f})")
                                 if show_doctype:
                                     st.caption(f"📁 {c.get('url', 'URL 없음')}")
-                                st.text_area("", c["text"], height=100, disabled=True, key=f"ctx_{doctype}_{i}")
+                                # 고유한 키 생성: 대화순서_문서타입_인덱스_문서ID
+                                unique_key = f"ctx_{turn_idx}_{doctype}_{i}_{c.get('doc_id', 'unknown')}"
+                                st.text_area("", c["text"], height=100, disabled=True, key=unique_key)
 
             # 출처 정보 개선
             with st.expander("📚 참고한 출처들"):
