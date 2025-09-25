@@ -6,6 +6,7 @@ import requests
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 import logging
+import re
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -257,7 +258,6 @@ class MuseumDataGenerator:
         # 첫 번째 줄에서 유물명 추정
         first_line = lines[0] if lines else ""
         # 특수문자나 숫자 제거하고 깔끔한 이름 반환
-        import re
         clean_name = re.sub(r'[^\w\s가-힣]', '', first_line).strip()
         return clean_name[:20] if clean_name else "이 유물"
 
@@ -468,6 +468,5 @@ def generate_museum_training_data(max_examples: int = 30,
         print("❌ 학습 데이터 생성 실패. API 설정을 확인하세요.")
 
 if __name__ == "__main__":
-    import re
     # 기본 실행
     generate_museum_training_data(max_examples=20, api_preference="ollama")

@@ -7,8 +7,9 @@ import os
 import time
 import json
 import subprocess
+import requests
 from pathlib import Path
-from src.data_generator import generate_museum_training_data
+from src.data_generator import generate_museum_training_data, MuseumDataGenerator
 
 def check_server_resources():
     """서버 리소스 체크"""
@@ -89,8 +90,6 @@ def check_ollama_connection():
     """Ollama 서비스 연결 확인"""
     print("\n🔗 Ollama 연결 체크:")
 
-    import requests
-
     url = os.getenv("OLLAMA_URL", "http://ollama:11434")
     max_retries = 10
 
@@ -123,8 +122,6 @@ def check_ollama_connection():
 def ensure_model_downloaded(model_name):
     """모델 다운로드 확인 및 설치"""
     print(f"\n📥 모델 다운로드 확인: {model_name}")
-
-    import requests
 
     url = os.getenv("OLLAMA_URL", "http://ollama:11434")
 
@@ -183,7 +180,6 @@ def run_data_generation(total_count=50, batch_size=10):
             output_file = f"generated_data/batch_{batch_num}_{timestamp}.json"
 
             # 데이터 생성
-            from src.data_generator import MuseumDataGenerator
             generator = MuseumDataGenerator()
             examples = generator.generate_training_examples(
                 max_examples=current_batch,
