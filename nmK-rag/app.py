@@ -2,7 +2,7 @@ import os
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from src.rag_chain import RAG
+from src.improved_rag import RAG
 
 st.set_page_config(
     page_title="국립중앙박물관 AI 도슨트",
@@ -49,6 +49,22 @@ st.markdown("---")
 with st.sidebar:
     st.header("🔧 AI 도슨트 설정")
 
+    # 모델 선택 옵션
+    st.subheader("🤖 응답 모드 선택")
+    target_type = st.radio(
+        "응답 대상",
+        ["일반 관람객", "어린이 관람객"],
+        index=0,
+        help="일반: 전문적이고 상세한 설명 / 어린이: 쉽고 재미있는 설명"
+    )
+
+    # 내부적으로 사용할 타겟 타입 매핑
+    target_mapping = {
+        "일반 관람객": "general",
+        "어린이 관람객": "children"
+    }
+    selected_target = target_mapping[target_type]
+
     # 검색 옵션
     st.subheader("📊 검색 설정")
     k = st.slider("검색 결과 개수", 3, 10, 6, 1)
@@ -94,7 +110,11 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("**🤖 AI 모델 정보**")
     st.markdown("- 검색: BGE-M3 (다국어)")
-    st.markdown("- 생성: Qwen2.5 (HF) / Ollama")
+    st.markdown("- 생성: Qwen2.5 + LoRA 파인튜닝")
+    if selected_target == "children":
+        st.markdown("- 모드: 어린이 친화 📚")
+    else:
+        st.markdown("- 모드: 일반 관람객 🎓")
     st.markdown("- 데이터: 국립중앙박물관 웹사이트")
 
 if rerun_btn:
@@ -138,14 +158,15 @@ if ask and q.strip():
         modified_q = q + " 지난"  # 필터링을 우회하기 위한 트릭
         ctx = rag.retrieve(modified_q, k=k)
 
-    ans = rag.generate(q, ctx)
+    ans = rag.generate(q, ctx, target_type=selected_target)
     st.session_state.chat.append({"role":"user","content":q})
     st.session_state.chat.append({
         "role":"assistant",
         "content":ans.text,
         "ctx":ctx,
         "sources":ans.sources,
-        "time_priority": time_priority
+        "time_priority": time_priority,
+        "target_type": selected_target
     })
 
 # 대화 히스토리 표시
@@ -158,10 +179,16 @@ for turn in st.session_state.chat:
             st.write(f"**질문:** {turn['content']}")
     else:
         with st.chat_message("assistant", avatar="🏛️"):
-            # 시간 우선순위 표시
+            # 응답 모드 및 시간 우선순위 표시
+            response_mode = turn.get('target_type', 'general')
+            mode_icon = "👶" if response_mode == "children" else "👨‍🎓"
+            mode_text = "어린이 친화" if response_mode == "children" else "일반"
+
             priority = turn.get('time_priority', '📚 모든 정보 포함')
             if priority == "🔥 현재 정보 우선":
-                st.caption("🔥 현재 유효한 정보를 우선하여 답변했습니다")
+                st.caption(f"{mode_icon} {mode_text} 모드 | 🔥 현재 유효한 정보를 우선하여 답변")
+            else:
+                st.caption(f"{mode_icon} {mode_text} 모드로 답변")
 
             st.write(f"**AI 도슨트:** {turn['content']}")
 
@@ -181,7 +208,9 @@ for turn in st.session_state.chat:
                         'web-visitor': '🚇 이용안내'
                     }
 
-                    turn_idx = len(st.session_state.chat)  # 현재 대화 순서
+                    # 현재 대화의 실제 인덱스 계산 (assistant 메시지들만 카운트)
+                    assistant_count = sum(1 for t in st.session_state.chat if t["role"] == "assistant")
+
                     for doctype, docs in ctx_by_type.items():
                         type_name = doctype_names.get(doctype, f"📄 {doctype}")
                         st.markdown(f"**{type_name}**")
@@ -190,8 +219,10 @@ for turn in st.session_state.chat:
                                 st.markdown(f"**[{i}] {c['title']}** (신뢰도: {c['score']:.3f})")
                                 if show_doctype:
                                     st.caption(f"📁 {c.get('url', 'URL 없음')}")
-                                # 고유한 키 생성: 대화순서_문서타입_인덱스_문서ID
-                                unique_key = f"ctx_{turn_idx}_{doctype}_{i}_{c.get('doc_id', 'unknown')}"
+                                # 더 고유한 키 생성: 타임스탬프 포함
+                                import time
+                                timestamp = str(int(time.time() * 1000))[-6:]  # 마지막 6자리
+                                unique_key = f"ctx_{assistant_count}_{doctype}_{i}_{timestamp}_{c.get('doc_id', 'unknown')}"
                                 st.text_area("문서 내용", c["text"], height=100, disabled=True, key=unique_key, label_visibility="collapsed")
 
             # 출처 정보 개선
