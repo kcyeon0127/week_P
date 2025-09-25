@@ -88,10 +88,20 @@ class LightningBertClassifier(pl.LightningModule):
             "test": (self.test_acc, self.test_f1),
         }
         acc_metric, f1_metric = metrics_map[stage]
-        acc_metric.update(preds, batch["labels"])
-        f1_metric.update(preds, batch["labels"])
+        labels = batch["labels"]
+        batch_size = labels.size(0) if hasattr(labels, "size") else None
+        acc_metric.update(preds, labels)
+        f1_metric.update(preds, labels)
 
-        self.log(f"{stage}/loss", loss, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log(
+            f"{stage}/loss",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+            batch_size=batch_size,
+        )
         self.log(
             f"{stage}/acc",
             acc_metric.compute(),
@@ -99,6 +109,7 @@ class LightningBertClassifier(pl.LightningModule):
             on_epoch=True,
             prog_bar=True,
             sync_dist=True,
+            batch_size=batch_size,
         )
         self.log(
             f"{stage}/f1",
@@ -107,6 +118,7 @@ class LightningBertClassifier(pl.LightningModule):
             on_epoch=True,
             prog_bar=True,
             sync_dist=True,
+            batch_size=batch_size,
         )
         return loss
 

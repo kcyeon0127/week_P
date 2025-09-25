@@ -1,8 +1,9 @@
+
 """Load a trained checkpoint, run predictions, and save evaluation summary."""
-import argparse
-import os
+from pathlib import Path
 from typing import List
 
+import os
 import pandas as pd
 import torch
 from sklearn.metrics import accuracy_score, f1_score
@@ -11,38 +12,42 @@ from datamodule import YNATDataModule, YNAT_LABELS
 from models import LightningBertClassifier
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Evaluate BERT classifier and store predictions")
-    parser.add_argument("--checkpoint", type=str, required=True, help="Path to .ckpt file")
-    parser.add_argument("--output_csv", type=str, default="outputs/predictions.csv")
-    parser.add_argument("--model_name", type=str, default="bert-base-multilingual-cased")
-    parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--max_length", type=int, default=128)
-    parser.add_argument("--num_workers", type=int, default=4)
-    parser.add_argument("--split", type=str, choices=["val", "test"], default="test")
-    return parser.parse_args()
+def main():
+    # 기본 설정 값 (필요 시 수정)
+    checkpoint_path = Path("outputs/bert-ynat-epoch=02-val_f1=0.000.ckpt")
+    output_csv = Path("outputs/predictions.csv")
+    model_name = "bert-base-multilingual-cased"
+    batch_size = 32
+    max_length = 128
+    num_workers = 4
+    split = "test"  # "val" 또는 "test"
+    seed = 42
 
+    os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
-def run_prediction(args: argparse.Namespace) -> pd.DataFrame:
+    if not checkpoint_path.exists():
+        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+
+    output_csv.parent.mkdir(parents=True, exist_ok=True)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
     model = LightningBertClassifier.load_from_checkpoint(
-        args.checkpoint,
-        model_name=args.model_name,
+        checkpoint_path,
+        model_name=model_name,
     )
     model.to(device)
     model.eval()
 
     datamodule = YNATDataModule(
-        model_name=args.model_name,
-        batch_size=args.batch_size,
-        max_length=args.max_length,
-        num_workers=args.num_workers,
-        seed=42,
+        model_name=model_name,
+        batch_size=batch_size,
+        max_length=max_length,
+        num_workers=num_workers,
+        seed=seed,
     )
     datamodule.setup()
 
-    loader = datamodule.val_dataloader() if args.split == "val" else datamodule.test_dataloader()
+    loader = datamodule.val_dataloader() if split == "val" else datamodule.test_dataloader()
 
     rows: List[dict] = []
     for batch in loader:
@@ -73,20 +78,12 @@ def run_prediction(args: argparse.Namespace) -> pd.DataFrame:
             )
 
     df = pd.DataFrame(rows)
-    return df
-
-
-def main():
-    args = parse_args()
-    os.makedirs(os.path.dirname(args.output_csv), exist_ok=True)
-
-    df = run_prediction(args)
-    df.to_csv(args.output_csv, index=False)
+    df.to_csv(output_csv, index=False)
 
     acc = accuracy_score(df["label"], df["prediction"])
     f1 = f1_score(df["label"], df["prediction"], average="macro")
 
-    print(f"Saved predictions to {args.output_csv}")
+    print(f"Saved predictions to {output_csv}")
     print(f"Accuracy: {acc:.4f}")
     print(f"Macro F1: {f1:.4f}")
 

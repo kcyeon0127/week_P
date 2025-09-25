@@ -25,9 +25,9 @@
   - 결과는 CSV(`outputs/predictions.csv`)로 저장되며, 정확도와 매크로 F1을 출력합니다.
   - 실행 예시: `python predict_and_report.py --checkpoint outputs/bert-ynat-epoch.ckpt`
 - `analyze_predictions.py`
-  - `outputs/predictions.csv`를 분석해 정확도/매크로 F1, 라벨별 리포트, 혼동행렬 이미지를 저장합니다.
+  - `outputs/predictions.csv`를 기본 경로로 읽어 정확도/매크로 F1, 라벨별 리포트, 혼동행렬 이미지를 저장합니다.
   - 추가로 낮은 확신도/오분류 샘플을 CSV로 내보냅니다.
-  - 실행 예시: `python analyze_predictions.py --pred_csv outputs/predictions.csv`
+  - 실행 예시: `python analyze_predictions.py`
 
 ## 5. Streamlit 데모
 - `streamlit_app.py`
@@ -39,7 +39,7 @@
 ## 실행 순서 요약
 1. `python train.py ...`로 모델 학습 및 체크포인트 생성.
 2. `python predict_and_report.py --checkpoint <경로>`로 예측 CSV 및 지표 산출.
-3. `python analyze_predictions.py --pred_csv outputs/predictions.csv`로 성능 요약, 혼동행렬, 저확신/오분류 샘플을 저장.
+3. `python analyze_predictions.py`로 성능 요약, 혼동행렬, 저확신/오분류 샘플을 저장.
 4. `streamlit run streamlit_app.py`로 데모 페이지 실행.
 
 > 참고: 재현 가능한 분석을 위해 `analyze_predictions.py`처럼 `.py` 스크립트로 통계를 남기는 방식을 추천합니다. 필요 시 Jupyter 노트북을 추가로 사용해 시각화나 탐색형 분석을 진행할 수 있습니다.
