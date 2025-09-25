@@ -1,20 +1,20 @@
 
 """Load a trained checkpoint, run predictions, and save evaluation summary."""
+import os
 from pathlib import Path
 from typing import List
 
-import os
 import pandas as pd
 import torch
 from sklearn.metrics import accuracy_score, f1_score
 
 from datamodule import YNATDataModule, YNAT_LABELS
 from models import LightningBertClassifier
+from utils_checkpoint import find_latest_checkpoint
 
 
 def main():
-    # 기본 설정 값 (필요 시 수정)
-    checkpoint_path = Path("outputs/bert-ynat-epoch=02-val_f1=0.000.ckpt")
+    # 기본 설정 (필요 시 수정)
     output_csv = Path("outputs/predictions.csv")
     model_name = "bert-base-multilingual-cased"
     batch_size = 32
@@ -25,10 +25,10 @@ def main():
 
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
-    if not checkpoint_path.exists():
-        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
-
     output_csv.parent.mkdir(parents=True, exist_ok=True)
+    checkpoint_path = find_latest_checkpoint(str(output_csv.parent))
+    if checkpoint_path is None:
+        raise FileNotFoundError("No checkpoint found in outputs directory.")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = LightningBertClassifier.load_from_checkpoint(
@@ -83,6 +83,7 @@ def main():
     acc = accuracy_score(df["label"], df["prediction"])
     f1 = f1_score(df["label"], df["prediction"], average="macro")
 
+    print(f"Using checkpoint: {checkpoint_path}")
     print(f"Saved predictions to {output_csv}")
     print(f"Accuracy: {acc:.4f}")
     print(f"Macro F1: {f1:.4f}")

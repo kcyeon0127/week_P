@@ -14,20 +14,17 @@
 ## 3. 학습 파이프라인
 - `train.py`
   - PyTorch Lightning 학습 엔트리 포인트입니다.
-  - 주요 하이퍼파라미터: `--lr`, `--batch_size`, `--max_length`, `--epochs`, `--seed`, `--devices` 등.
-  - `--devices`로 사용할 GPU 개수나 ID 목록을 명시할 수 있습니다(예: `--devices 1`, `--devices 0,1`).
-  - 실행 예시: `python train.py --batch_size 16 --epochs 3 --devices 1`
+  - 학습률, 배치 크기, 에폭, GPU 장치 등은 파일 상단의 상수로 관리하며 필요하면 값을 수정한 뒤 `python train.py`만 실행하면 됩니다.
+  - 기본값은 단일 GPU 사용(`devices = 1`)이며, 여러 GPU를 쓰려면 리스트로 지정하면 됩니다.
   - 가장 좋은 검증 F1 체크포인트는 `outputs/*.ckpt`로 저장됩니다.
 
 ## 4. 예측 결과 및 평가
 - `predict_and_report.py`
-  - 체크포인트를 로드해 검증/테스트 Split에서 예측을 수행합니다.
-  - 결과는 CSV(`outputs/predictions.csv`)로 저장되며, 정확도와 매크로 F1을 출력합니다.
-  - 실행 예시: `python predict_and_report.py --checkpoint outputs/bert-ynat-epoch.ckpt`
+  - `outputs/` 디렉터리에서 최신 체크포인트를 자동으로 찾아 예측을 수행하고 `outputs/predictions.csv`에 저장합니다.
+  - 정확도와 매크로 F1을 함께 출력합니다. 실행은 `python predict_and_report.py` 한 줄이면 충분합니다.
 - `analyze_predictions.py`
   - `outputs/predictions.csv`를 기본 경로로 읽어 정확도/매크로 F1, 라벨별 리포트, 혼동행렬 이미지를 저장합니다.
-  - 추가로 낮은 확신도/오분류 샘플을 CSV로 내보냅니다.
-  - 실행 예시: `python analyze_predictions.py`
+  - 추가로 낮은 확신도/오분류 샘플을 CSV로 내보냅니다. 실행 명령: `python analyze_predictions.py`
 
 ## 5. Streamlit 데모
 - `streamlit_app.py`

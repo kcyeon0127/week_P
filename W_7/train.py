@@ -1,6 +1,7 @@
+
 """Train BERT classifier on KLUE YNAT with PyTorch Lightning."""
-import argparse
 import os
+from pathlib import Path
 
 import torch
 import pytorch_lightning as pl
@@ -10,74 +11,54 @@ from datamodule import YNATDataModule
 from models import LightningBertClassifier
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Train BERT classifier on KLUE YNAT")
-    parser.add_argument("--model_name", type=str, default="bert-base-multilingual-cased")
-    parser.add_argument("--lr", type=float, default=2e-5)
-    parser.add_argument("--batch_size", type=int, default=16)
-    parser.add_argument("--max_length", type=int, default=128)
-    parser.add_argument("--epochs", type=int, default=3)
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--num_workers", type=int, default=4)
-    parser.add_argument(
-        "--devices",
-        type=str,
-        default="1",
-        help="사용할 GPU 장치 수 또는 ID 리스트 (예: '1' or '0,1'). 'auto' 사용 가능",
-    )
-    parser.add_argument("--output_dir", type=str, default="outputs")
-    return parser.parse_args()
-
-
-def parse_devices(raw: str):
-    if raw.lower() == "auto":
-        return "auto"
-    if "," in raw:
-        return [int(x) for x in raw.split(",") if x.strip()]
-    return int(raw)
-
-
 def main():
-    args = parse_args()
+    # 기본 학습 설정 (필요 시 아래 값을 수정하세요)
+    model_name = "bert-base-multilingual-cased"
+    learning_rate = 2e-5
+    batch_size = 16
+    max_length = 128
+    epochs = 3
+    seed = 42
+    num_workers = 4
+    devices = 1  # 예: 1 또는 [0, 1]
+    output_dir = Path("outputs")
+
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
-    pl.seed_everything(args.seed, workers=True)
+    pl.seed_everything(seed, workers=True)
 
-    os.makedirs(args.output_dir, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    model = LightningBertClassifier(model_name=args.model_name, lr=args.lr)
+    model = LightningBertClassifier(model_name=model_name, lr=learning_rate)
     datamodule = YNATDataModule(
-        model_name=args.model_name,
-        batch_size=args.batch_size,
-        max_length=args.max_length,
-        num_workers=args.num_workers,
-        seed=args.seed,
+        model_name=model_name,
+        batch_size=batch_size,
+        max_length=max_length,
+        num_workers=num_workers,
+        seed=seed,
     )
 
-    requested_devices = parse_devices(args.devices)
     accelerator = "gpu" if torch.cuda.is_available() else "cpu"
-    devices = 1 if accelerator == "cpu" else requested_devices
-
-    checkpoint_cb = ModelCheckpoint(
-        dirpath=args.output_dir,
-        filename="bert-ynat-{epoch:02d}-{val_f1:.3f}",
-        monitor="val/f1",
-        mode="max",
-        save_top_k=1,
-    )
-
     trainer = pl.Trainer(
-        max_epochs=args.epochs,
+        max_epochs=epochs,
         accelerator=accelerator,
-        devices=devices,
+        devices=devices if accelerator == "gpu" else 1,
         precision="16-mixed" if torch.cuda.is_available() else 32,
-        default_root_dir=args.output_dir,
-        callbacks=[checkpoint_cb],
+        default_root_dir=str(output_dir),
+        callbacks=[
+            ModelCheckpoint(
+                dirpath=str(output_dir),
+                filename="bert-ynat-{epoch:02d}-{val_f1:.3f}",
+                monitor="val/f1",
+                mode="max",
+                save_top_k=1,
+            )
+        ],
         log_every_n_steps=10,
     )
 
     trainer.fit(model, datamodule=datamodule)
     trainer.test(model=trainer.model, datamodule=datamodule)
-    print(f"Best checkpoint saved to: {checkpoint_cb.best_model_path}")
+    print(f"Best checkpoint saved to: {trainer.checkpoint_callback.best_model_path}")
 
 
 if __name__ == "__main__":
