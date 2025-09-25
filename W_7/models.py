@@ -88,10 +88,26 @@ class LightningBertClassifier(pl.LightningModule):
             "test": (self.test_acc, self.test_f1),
         }
         acc_metric, f1_metric = metrics_map[stage]
+        acc_metric.update(preds, batch["labels"])
+        f1_metric.update(preds, batch["labels"])
 
-        self.log(f"{stage}/loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log(f"{stage}/acc", acc_metric(preds, batch["labels"]), on_step=False, on_epoch=True, prog_bar=True)
-        self.log(f"{stage}/f1", f1_metric(preds, batch["labels"]), on_step=False, on_epoch=True, prog_bar=True)
+        self.log(f"{stage}/loss", loss, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log(
+            f"{stage}/acc",
+            acc_metric.compute(),
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+        self.log(
+            f"{stage}/f1",
+            f1_metric.compute(),
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -110,3 +126,25 @@ class LightningBertClassifier(pl.LightningModule):
             weight_decay=self.hparams.weight_decay,
         )
         return optimizer
+
+    # ------------------------------------------------------------------
+    # Lightning hooks for metric state management & batch transfer.
+    # ------------------------------------------------------------------
+    def on_train_epoch_end(self):
+        self.train_acc.reset()
+        self.train_f1.reset()
+
+    def on_validation_epoch_end(self):
+        self.val_acc.reset()
+        self.val_f1.reset()
+
+    def on_test_epoch_end(self):
+        self.test_acc.reset()
+        self.test_f1.reset()
+
+    def transfer_batch_to_device(self, batch, device, dataloader_idx):
+        text = batch.pop("text", None)
+        batch = super().transfer_batch_to_device(batch, device, dataloader_idx)
+        if text is not None:
+            batch["text"] = text
+        return batch

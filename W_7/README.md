@@ -14,8 +14,9 @@
 ## 3. 학습 파이프라인
 - `train.py`
   - PyTorch Lightning 학습 엔트리 포인트입니다.
-  - 주요 하이퍼파라미터: `--lr`, `--batch_size`, `--max_length`, `--epochs`, `--seed` 등.
-  - 실행 예시: `python train.py --batch_size 16 --epochs 3`
+  - 주요 하이퍼파라미터: `--lr`, `--batch_size`, `--max_length`, `--epochs`, `--seed`, `--devices` 등.
+  - `--devices`로 사용할 GPU 개수나 ID 목록을 명시할 수 있습니다(예: `--devices 1`, `--devices 0,1`).
+  - 실행 예시: `python train.py --batch_size 16 --epochs 3 --devices 1`
   - 가장 좋은 검증 F1 체크포인트는 `outputs/*.ckpt`로 저장됩니다.
 
 ## 4. 예측 결과 및 평가
