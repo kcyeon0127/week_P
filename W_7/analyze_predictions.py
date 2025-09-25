@@ -34,6 +34,57 @@ def main():
     )
     from datamodule import YNAT_LABELS
 
+    # ---------------------------
+    # Label language and font setup
+    # ---------------------------
+    # If True, use English labels to avoid font issues in PNGs.
+    USE_ENGLISH_LABELS = False
+    EN_YNAT_LABELS = [
+        "IT_SCIENCE",
+        "ECONOMY",
+        "SOCIETY",
+        "LIFE_CULTURE",
+        "WORLD",
+        "SPORTS",
+        "POLITICS",
+    ]
+
+    # Optional: if you want Korean labels and no system font supports them,
+    # set this to True to try downloading a Korean font automatically.
+    ALLOW_FONT_DOWNLOAD = True  # keep False by default
+
+    def ensure_korean_font():
+        import matplotlib.font_manager as fm
+        import tempfile, requests
+        # Common Korean-capable fonts that might already be present.
+        candidates = [
+            "Malgun Gothic",  # Windows
+            "AppleGothic",    # macOS
+            "NanumGothic",
+            "Noto Sans CJK KR",
+            "Noto Sans KR",
+        ]
+        available = {f.name for f in fm.fontManager.ttflist}
+        for name in candidates:
+            if name in available:
+                plt.rcParams["font.family"] = name
+                return True
+        # Try to download NotoSansKR if allowed
+        if not ALLOW_FONT_DOWNLOAD:
+            return False
+        url = "https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/Korean/NotoSansKR-Regular.otf"
+        try:
+            with requests.get(url, timeout=20) as r:
+                r.raise_for_status()
+                with tempfile.NamedTemporaryFile(suffix=".otf", delete=False) as tmp:
+                    tmp.write(r.content)
+                    font_path = tmp.name
+            fm.fontManager.addfont(font_path)
+            plt.rcParams["font.family"] = "Noto Sans KR"
+            return True
+        except Exception:
+            return False
+
     if not pred_csv.exists():
         raise FileNotFoundError(f"Prediction CSV not found: {pred_csv}")
 
@@ -50,16 +101,27 @@ def main():
     mcc = matthews_corrcoef(y_true, y_pred)
     macro_prec, macro_rec, _, _ = precision_recall_fscore_support(y_true, y_pred, average="macro")
 
+    selected_labels = EN_YNAT_LABELS if USE_ENGLISH_LABELS else YNAT_LABELS
+    # Classification report with consistent class order 0..6
     label_report = classification_report(
-        df["label"],
-        df["prediction"],
-        target_names=df["label_name"].unique(),
+        y_true,
+        y_pred,
+        labels=list(range(len(selected_labels))),
+        target_names=selected_labels,
         digits=4,
+        zero_division=0,
     )
 
-    label_accuracy = (
-        df.groupby("label_name")["correct"].mean().sort_values(ascending=False)
-    )
+    # Per-class accuracy (recall per true class)
+    per_class_acc = {}
+    for i, name in enumerate(selected_labels):
+        mask = (y_true == i)
+        if mask.sum() == 0:
+            per_class_acc[name] = float("nan")
+        else:
+            per_class_acc[name] = float((y_pred[mask] == i).mean())
+    import pandas as pd
+    label_accuracy = pd.Series(per_class_acc).sort_values(ascending=False)
 
     report_txt = out_dir / "analysis_report.txt"
     with report_txt.open("w", encoding="utf-8") as f:
@@ -77,14 +139,11 @@ def main():
 
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(8, 6))
-    sns.heatmap(
-        cm,
-        annot=True,
-        fmt="d",
-        cmap="Blues",
-        xticklabels=YNAT_LABELS,
-        yticklabels=YNAT_LABELS,
-    )
+    # If using Korean labels and font is unavailable, try enabling a Korean font.
+    if not USE_ENGLISH_LABELS:
+        ensure_korean_font()
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
+                xticklabels=selected_labels, yticklabels=selected_labels)
     plt.xlabel("Predicted")
     plt.ylabel("True")
     plt.tight_layout()
@@ -98,16 +157,8 @@ def main():
         cm_norm = cm.astype(float) / cm.sum(axis=1, keepdims=True)
         cm_norm = np.nan_to_num(cm_norm)
     plt.figure(figsize=(8, 6))
-    sns.heatmap(
-        cm_norm,
-        annot=True,
-        fmt=".2f",
-        cmap="Blues",
-        vmin=0.0,
-        vmax=1.0,
-        xticklabels=YNAT_LABELS,
-        yticklabels=YNAT_LABELS,
-    )
+    sns.heatmap(cm_norm, annot=True, fmt=".2f", cmap="Blues", vmin=0.0, vmax=1.0,
+                xticklabels=selected_labels, yticklabels=selected_labels)
     plt.xlabel("Predicted")
     plt.ylabel("True (row-normalized)")
     plt.tight_layout()
