@@ -38,7 +38,7 @@ def main():
     # Label language and font setup
     # ---------------------------
     # If True, use English labels to avoid font issues in PNGs.
-    USE_ENGLISH_LABELS = False
+    USE_ENGLISH_LABELS = True
     EN_YNAT_LABELS = [
         "IT_SCIENCE",
         "ECONOMY",
@@ -51,7 +51,7 @@ def main():
 
     # Optional: if you want Korean labels and no system font supports them,
     # set this to True to try downloading a Korean font automatically.
-    ALLOW_FONT_DOWNLOAD = True  # keep False by default
+    ALLOW_FONT_DOWNLOAD = False  # keep False by default
 
     def ensure_korean_font():
         import matplotlib.font_manager as fm
