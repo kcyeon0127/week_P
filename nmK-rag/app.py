@@ -110,33 +110,8 @@ if "rag" not in st.session_state:
 # 질문 입력
 st.markdown("### 💬 AI 도슨트에게 질문하기")
 
-# 빠른 질문 버튼들
-quick_questions = [
-    "현재 전시 추천해주세요",
-    "오늘 운영시간은 언제까지인가요?",
-    "입장료가 얼마인가요?",
-    "지하철로 오는 방법 알려주세요",
-    "국보 1호에 대해 설명해주세요",
-    "어린이 체험 프로그램이 있나요?"
-]
-
-st.markdown("**빠른 질문:**")
-cols = st.columns(3)
-for i, question in enumerate(quick_questions):
-    with cols[i % 3]:
-        if st.button(f"💡 {question}", key=f"quick_{i}"):
-            st.session_state.selected_question = question
-
-# 사용자 입력
-if 'selected_question' in st.session_state:
-    default_question = st.session_state.selected_question
-    del st.session_state.selected_question
-else:
-    default_question = ""
-
 q = st.text_input(
-    "질문을 입력하거나 위의 빠른 질문 버튼을 선택하세요:",
-    value=default_question,
+    "질문을 입력하세요:",
     placeholder="예: 현재 전시 중인 특별전은 무엇인가요?"
 )
 
@@ -217,7 +192,7 @@ for turn in st.session_state.chat:
                                     st.caption(f"📁 {c.get('url', 'URL 없음')}")
                                 # 고유한 키 생성: 대화순서_문서타입_인덱스_문서ID
                                 unique_key = f"ctx_{turn_idx}_{doctype}_{i}_{c.get('doc_id', 'unknown')}"
-                                st.text_area("", c["text"], height=100, disabled=True, key=unique_key)
+                                st.text_area("문서 내용", c["text"], height=100, disabled=True, key=unique_key, label_visibility="collapsed")
 
             # 출처 정보 개선
             with st.expander("📚 참고한 출처들"):
