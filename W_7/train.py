@@ -55,17 +55,7 @@ def main():
 
     requested_devices = parse_devices(args.devices)
     accelerator = "gpu" if torch.cuda.is_available() else "cpu"
-    if accelerator == "cpu":
-        devices = 1
-    else:
-        devices = requested_devices
-    strategy = None
-    if accelerator == "gpu" and (
-        (isinstance(devices, int) and devices > 1)
-        or (isinstance(devices, (list, tuple)) and len(devices) > 1)
-        or devices == "auto"
-    ):
-        strategy = "ddp"
+    devices = 1 if accelerator == "cpu" else requested_devices
 
     checkpoint_cb = ModelCheckpoint(
         dirpath=args.output_dir,
@@ -83,7 +73,6 @@ def main():
         default_root_dir=args.output_dir,
         callbacks=[checkpoint_cb],
         log_every_n_steps=10,
-        strategy=strategy,
     )
 
     trainer.fit(model, datamodule=datamodule)
