@@ -30,21 +30,38 @@ class FreeAPIGenerator:
         }
 
     def _use_ollama(self, prompt: str) -> Optional[str]:
-        """Ollama API 사용 (로컬 무료)"""
+        """Ollama API 사용 (로컬/Docker 무료)"""
         try:
-            url = os.getenv("OLLAMA_URL", "http://localhost:11434")
-            model = os.getenv("OLLAMA_MODEL", "llama3.2:3b")  # 가벼운 모델 기본값
+            # Docker 환경 자동 감지
+            if os.path.exists('/.dockerenv'):
+                # Docker 컨테이너 내부인 경우
+                url = os.getenv("OLLAMA_URL", "http://ollama:11434")
+                logger.info("Docker 환경 감지됨")
+            else:
+                # 일반 로컬 환경
+                url = os.getenv("OLLAMA_URL", "http://localhost:11434")
+
+            model = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
 
             payload = {
                 "model": model,
                 "prompt": prompt,
                 "stream": False,
-                "options": {"temperature": 0.7}
+                "options": {
+                    "temperature": 0.7,
+                    "num_predict": 512,  # 응답 길이 제한
+                    "num_ctx": 2048      # 컨텍스트 길이
+                }
             }
 
-            response = requests.post(f"{url}/api/generate", json=payload, timeout=300)
+            # Docker 환경에서는 더 긴 타임아웃 설정
+            timeout = 600 if os.path.exists('/.dockerenv') else 300
+
+            response = requests.post(f"{url}/api/generate", json=payload, timeout=timeout)
             if response.status_code == 200:
                 return response.json()["response"]
+            else:
+                logger.error(f"Ollama 응답 오류: {response.status_code}")
         except Exception as e:
             logger.error(f"Ollama API 호출 실패: {e}")
         return None

@@ -71,6 +71,18 @@ def generate_prediction(model, tokenizer, text):
             pad_token_id=tokenizer.eos_token_id,
             eos_token_id=tokenizer.eos_token_id,
             )
+        # 참고: Top-K 샘플링으로 바꾸려면 아래 주석을 사용하세요.
+        # sampled_outputs = model.generate(
+        #     **enc,
+        #     max_new_tokens=64,
+        #     do_sample=True,
+        #     top_k=50,
+        #     top_p=0.95,
+        #     temperature=0.8,
+        #     num_return_sequences=1,
+        #     pad_token_id=tokenizer.eos_token_id,
+        #     eos_token_id=tokenizer.eos_token_id,
+        # )
     decoded = tokenizer.batch_decode(outputs, skip_special_tokens=True)
     
     print(f"Raw generated text: {decoded[0]}")

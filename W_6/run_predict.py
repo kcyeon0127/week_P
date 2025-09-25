@@ -67,6 +67,18 @@ def predict(cfg: GenConfig):
                 pad_token_id=tokenizer.eos_token_id,
                 eos_token_id=tokenizer.eos_token_id,
             )
+            # 참고: Top-K 샘플링을 쓰고 싶다면 아래 주석 블록을 활용하세요.
+            # sampled_outputs = model.generate(
+            #     **enc,
+            #     max_new_tokens=cfg.max_new_tokens,
+            #     do_sample=True,
+            #     top_k=cfg.top_k,
+            #     top_p=cfg.top_p,
+            #     temperature=cfg.temperature,
+            #     num_return_sequences=1,
+            #     pad_token_id=tokenizer.eos_token_id,
+            #     eos_token_id=tokenizer.eos_token_id,
+            # )
         decoded = tokenizer.batch_decode(outputs, skip_special_tokens=True)
         # 각 샘플에서 프롬프트를 제거하여 순수 생성만 추출
         for prompt_text, full_text in zip(batch_prompts, decoded):
