@@ -30,15 +30,19 @@ class FreeAPIGenerator:
         }
 
     def _use_ollama(self, prompt: str) -> Optional[str]:
-        """Ollama API 사용 (로컬/Docker 무료)"""
+        """Ollama API 사용 (로컬/서버/Docker 무료)"""
         try:
-            # Docker 환경 자동 감지
+            # 환경 자동 감지
             if os.path.exists('/.dockerenv'):
                 # Docker 컨테이너 내부인 경우
                 url = os.getenv("OLLAMA_URL", "http://ollama:11434")
                 logger.info("Docker 환경 감지됨")
+            elif 'CONDA_DEFAULT_ENV' in os.environ:
+                # 아나콘다 가상환경
+                url = os.getenv("OLLAMA_URL", "http://localhost:11434")
+                logger.info(f"아나콘다 환경 감지됨: {os.environ['CONDA_DEFAULT_ENV']}")
             else:
-                # 일반 로컬 환경
+                # 일반 환경
                 url = os.getenv("OLLAMA_URL", "http://localhost:11434")
 
             model = os.getenv("OLLAMA_MODEL", "llama3.2:3b")

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Docker 서버 환경용 학습 데이터 생성 스크립트
+서버 환경용 학습 데이터 생성 스크립트 (아나콘다 가상환경)
 """
 
 import os
@@ -10,9 +10,9 @@ import subprocess
 from pathlib import Path
 from src.data_generator import generate_museum_training_data
 
-def check_docker_resources():
-    """Docker 컨테이너 리소스 체크"""
-    print("🐳 Docker 환경 리소스 체크:")
+def check_server_resources():
+    """서버 리소스 체크"""
+    print("🖥️  서버 리소스 체크:")
 
     # 메모리 체크
     try:
@@ -50,16 +50,22 @@ def check_docker_resources():
     return mem_total, cpu_count, has_gpu
 
 def optimize_settings(mem_mb, cpu_count, has_gpu):
-    """리소스에 맞는 최적 설정"""
+    """리소스에 맞는 최적 설정 (GPU 서버 최적화)"""
     mem_gb = mem_mb // 1024
 
     print("\n⚙️ 최적화 설정:")
 
-    # 모델 선택
-    if mem_gb >= 24 and has_gpu:
-        model = "llama3.1:8b"
+    # GPU 서버 특별 최적화
+    if has_gpu and mem_gb >= 32:
+        model = "llama3.1:8b"  # 고성능 모델
+        batch_size = 20        # 대량 배치
+        parallel = min(6, cpu_count // 2)
+        print("   🎮 GPU 서버 고성능 모드 활성화!")
+    elif has_gpu and mem_gb >= 16:
+        model = "llama3.2:3b"
         batch_size = 15
         parallel = min(4, cpu_count // 2)
+        print("   🎮 GPU 가속 모드 활성화!")
     elif mem_gb >= 12:
         model = "llama3.2:3b"
         batch_size = 10
@@ -261,14 +267,14 @@ def merge_all_files(file_list):
 
 def main():
     print("=" * 60)
-    print("🏛️  국립중앙박물관 학습 데이터 생성 (Docker 서버용)")
+    print("🏛️  국립중앙박물관 학습 데이터 생성 (서버용)")
     print("=" * 60)
 
     # 디렉토리 생성
     os.makedirs("generated_data", exist_ok=True)
 
     # 리소스 체크
-    mem_mb, cpu_count, has_gpu = check_docker_resources()
+    mem_mb, cpu_count, has_gpu = check_server_resources()
 
     # 설정 최적화
     model, batch_size, parallel = optimize_settings(mem_mb, cpu_count, has_gpu)
