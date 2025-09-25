@@ -83,7 +83,9 @@ def optimize_settings(mem_mb, cpu_count, has_gpu):
     # 환경변수 설정
     os.environ['OLLAMA_MODEL'] = model
     os.environ['OLLAMA_NUM_PARALLEL'] = str(parallel)
-
+    os.environ['OLLAMA_URL'] = 'http://localhost:11434'
+    os.environ['OLLAMA_GPU_LAYERS'] = '40'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '2,3'
     return model, batch_size, parallel
 
 def check_ollama_connection():
