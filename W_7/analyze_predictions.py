@@ -19,6 +19,7 @@ def main():
     matplotlib.use("Agg")  # 서버 환경에서 안전하게 저장
 
     import os
+    import numpy as np
     import pandas as pd
     import seaborn as sns
     import matplotlib.pyplot as plt
@@ -27,7 +28,11 @@ def main():
         f1_score,
         classification_report,
         confusion_matrix,
+        balanced_accuracy_score,
+        matthews_corrcoef,
+        precision_recall_fscore_support,
     )
+    from datamodule import YNAT_LABELS
 
     if not pred_csv.exists():
         raise FileNotFoundError(f"Prediction CSV not found: {pred_csv}")
@@ -36,8 +41,14 @@ def main():
 
     df = pd.read_csv(pred_csv)
 
-    accuracy = accuracy_score(df["label"], df["prediction"])
-    macro_f1 = f1_score(df["label"], df["prediction"], average="macro")
+    y_true = df["label"].to_numpy()
+    y_pred = df["prediction"].to_numpy()
+    accuracy = accuracy_score(y_true, y_pred)
+    macro_f1 = f1_score(y_true, y_pred, average="macro")
+    weighted_f1 = f1_score(y_true, y_pred, average="weighted")
+    balanced_acc = balanced_accuracy_score(y_true, y_pred)
+    mcc = matthews_corrcoef(y_true, y_pred)
+    macro_prec, macro_rec, _, _ = precision_recall_fscore_support(y_true, y_pred, average="macro")
 
     label_report = classification_report(
         df["label"],
@@ -53,16 +64,27 @@ def main():
     report_txt = out_dir / "analysis_report.txt"
     with report_txt.open("w", encoding="utf-8") as f:
         f.write(f"Accuracy: {accuracy:.4f}\n")
-        f.write(f"Macro F1: {macro_f1:.4f}\n\n")
+        f.write(f"Macro F1: {macro_f1:.4f}\n")
+        f.write(f"Weighted F1: {weighted_f1:.4f}\n")
+        f.write(f"Balanced Accuracy: {balanced_acc:.4f}\n")
+        f.write(f"MCC: {mcc:.4f}\n")
+        f.write(f"Macro Precision: {macro_prec:.4f}, Macro Recall: {macro_rec:.4f}\n\n")
         f.write("Label-wise classification report\n")
         f.write(label_report)
         f.write("\n\nLabel-wise accuracy\n")
         f.write(label_accuracy.to_string())
     print(f"Saved analysis summary to {report_txt}")
 
-    cm = confusion_matrix(df["label"], df["prediction"])
+    cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+    sns.heatmap(
+        cm,
+        annot=True,
+        fmt="d",
+        cmap="Blues",
+        xticklabels=YNAT_LABELS,
+        yticklabels=YNAT_LABELS,
+    )
     plt.xlabel("Predicted")
     plt.ylabel("True")
     plt.tight_layout()
@@ -70,6 +92,29 @@ def main():
     plt.savefig(cm_path, dpi=200)
     plt.close()
     print(f"Saved confusion matrix heatmap to {cm_path}")
+
+    # Row-normalized confusion matrix (recall perspective)
+    with np.errstate(invalid="ignore"):
+        cm_norm = cm.astype(float) / cm.sum(axis=1, keepdims=True)
+        cm_norm = np.nan_to_num(cm_norm)
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(
+        cm_norm,
+        annot=True,
+        fmt=".2f",
+        cmap="Blues",
+        vmin=0.0,
+        vmax=1.0,
+        xticklabels=YNAT_LABELS,
+        yticklabels=YNAT_LABELS,
+    )
+    plt.xlabel("Predicted")
+    plt.ylabel("True (row-normalized)")
+    plt.tight_layout()
+    cmn_path = out_dir / "confusion_matrix_normalized.png"
+    plt.savefig(cmn_path, dpi=200)
+    plt.close()
+    print(f"Saved normalized confusion matrix heatmap to {cmn_path}")
 
     low_conf = df.nsmallest(top_k, "probability")[
         ["text", "label_name", "prediction_name", "probability"]
