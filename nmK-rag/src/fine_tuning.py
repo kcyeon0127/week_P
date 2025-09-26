@@ -111,7 +111,7 @@ class MultiTargetTrainer:
         else:
             return question
 
-    def train_model(self, dataset: Dataset, output_dir: str, target_type: str):
+    def train_model(self, train_dataset: Dataset, eval_dataset: Dataset, output_dir: str, target_type: str):
         """모델 훈련"""
         training_args = TrainingArguments(
             output_dir=output_dir,
@@ -143,7 +143,8 @@ class MultiTargetTrainer:
         trainer = Trainer(
             model=self.model,
             args=training_args,
-            train_dataset=dataset,
+            train_dataset=train_dataset,
+            eval_dataset=eval_dataset,
             data_collator=data_collator,
         )
 
@@ -156,7 +157,7 @@ class MultiTargetTrainer:
 
         logger.info(f"모델 훈련 완료 및 저장: {output_dir}")
 
-def train_multitarget_models(data_path: str, base_output_dir: str = "models"):
+def train_multitarget_models(train_data_path: str, val_data_path: str, base_output_dir: str = "models"):
     """일반용과 어린이용 모델 모두 훈련"""
     os.makedirs(base_output_dir, exist_ok=True)
 
@@ -167,10 +168,11 @@ def train_multitarget_models(data_path: str, base_output_dir: str = "models"):
         trainer.load_model()
         trainer.setup_lora_config(target_type)
 
-        dataset = trainer.prepare_dataset(data_path, target_type)
+        train_dataset = trainer.prepare_dataset(train_data_path, target_type)
+        eval_dataset = trainer.prepare_dataset(val_data_path, target_type)
         output_dir = os.path.join(base_output_dir, f"lora-{target_type}")
 
-        trainer.train_model(dataset, output_dir, target_type)
+        trainer.train_model(train_dataset, eval_dataset, output_dir, target_type)
 
         print(f"=== {target_type.upper()} 모델 훈련 완료 ===\n")
 
@@ -179,5 +181,6 @@ def train_multitarget_models(data_path: str, base_output_dir: str = "models"):
         torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
 if __name__ == "__main__":
-    data_path = "data/training_data.json"
-    train_multitarget_models(data_path)
+    train_data_path = "data/mega_training_data_train.json"
+    val_data_path = "data/mega_training_data_val.json"
+    train_multitarget_models(train_data_path, val_data_path)
