@@ -88,7 +88,6 @@ def main(
             normalize_embeddings=True,
             batch_size=encode_batch,
             show_progress_bar=False,
-            prompt_name=PASSAGE_PROMPT,
         )
         col.add(ids=ids, embeddings=embs, documents=texts, metadatas=metas)
 

@@ -1,15 +1,29 @@
-# 🏛️ 국립중앙박물관 AI 도슨트 - 지능형 RAG 시스템
+# 🏛️ 국립중앙박물관 AI 도슨트 - 멀티타겟 RAG 시스템
 
-국립중앙박물관 웹사이트의 데이터를 수집하고 가공하여, **전문 박물관 도슨트 역할**을 하는 검색 증강 생성(RAG) 기반의 AI 챗봇 시스템입니다.
+국립중앙박물관 웹사이트의 **2194개 실제 데이터**를 기반으로 구축된 **멀티타겟 RAG(Retrieval Augmented Generation) 시스템**입니다. 일반 관람객과 어린이 관람객을 위한 **차별화된 응답 스타일**을 제공하는 AI 도슨트 챗봇입니다.
 
-## ✨ 주요 특징
+## ✨ 핵심 기능
 
-- 🤖 **전문 박물관 도슨트**: 전시, 관람, 유물에 대한 전문적인 안내
-- ⏰ **실시간 날짜 인식**: 현재/과거/예정 전시를 정확히 구분
-- 🎯 **지능형 필터링**: 시간에 민감한 질문에 현재 유효한 정보만 제공
-- 🔍 **하이브리드 검색**: 의미적 검색(BGE-M3) + 키워드 매칭(BM25) + 리랭킹(CrossEncoder)
-- 📊 **박물관 특화 UI**: 빠른 질문, 시간 우선순위, 상세 평가 시스템
-- 🤖 **Qwen2.5 모델**: HuggingFace Transformers 기반 (Ollama 옵션 지원)
+### 🎯 **멀티타겟 응답 시스템**
+- **일반용**: 전문적이고 상세한 박물관 해설 (평균 457.3자)
+- **어린이용**: 친근하고 재미있는 설명 + 이모지 (평균 334.6자)
+- **실시간 모드 전환**: Streamlit 인터페이스에서 즉시 변경 가능
+
+### 🤖 **자동 학습 데이터 생성**
+- **무료 API 활용**: Ollama(Tesla V100 GPU), Groq, HuggingFace 등
+- **무제한 확장**: 2194개 크롤링 데이터에서 자동으로 질문-답변 쌍 생성
+- **품질 관리**: 중복 제거 및 응답 길이/스타일 자동 검증
+- **실제 성과**: 2000개 생성 → 539개 고품질 데이터 선별
+
+### 🔍 **지능형 검색 시스템**
+- **교통수단별 정확한 정보**: "지하철로 가는 방법" → 지하철 정보만 제공
+- **의도 파악**: 질문에서 교통수단 자동 감지
+- **관련도 점수 조정**: 사용자 의도에 맞는 문서 우선순위 자동 조정
+
+### 🚀 **LoRA 파인튜닝**
+- **어린이 말투 학습**: 485개 훈련 + 54개 검증 데이터
+- **효율적 학습**: 전체 모델의 1.18%만 파인튜닝
+- **Tesla V100 최적화**: GPU 2,3번 활용으로 고속 처리
 
 ## 🏗️ 시스템 아키텍처
 
@@ -100,10 +114,37 @@ python src/embed_index.py \
     --model BAAI/bge-m3
 ```
 
-### Phase 4: AI 도슨트 실행
+### Phase 4: 멀티타겟 학습 데이터 생성
 ```bash
-# Streamlit 웹 인터페이스 실행
-streamlit run app.py
+# Tesla V100 GPU로 대량 데이터 자동 생성
+python server_generate.py
+# 입력: 생성할 개수 (예: 1000개)
+# 결과: 크롤링 데이터 → 멀티타겟 질문-답변 쌍
+
+# 데이터 병합 및 품질 관리
+python merge_training_data.py merge \
+    --original data/training_data.json \
+    --generated generated_data/all_generated_*.json \
+    --output data/mega_training_data.json
+
+# 데이터 분석 및 분할
+python merge_training_data.py analyze data/mega_training_data.json
+python merge_training_data.py split data/mega_training_data.json --ratio 0.9
+```
+
+### Phase 5: LoRA 파인튜닝
+```bash
+# 어린이 말투 LoRA 파인튜닝 (Tesla V100 최적화)
+export CUDA_VISIBLE_DEVICES=2,3
+python src/fine_tuning.py
+
+# 결과: models/lora-general/, models/lora-children/
+```
+
+### Phase 6: AI 도슨트 실행
+```bash
+# Streamlit 멀티타겟 웹 인터페이스 실행
+streamlit run app.py --server.port 8501
 ```
 
 ## 🧠 핵심 기술 상세
@@ -132,7 +173,58 @@ def hybrid(self, query, k_dense=30, k_bm25=50, top_k=8, rerank=True):
     # 점수 가중합: dense_score + bm25_score * 0.1
 ```
 
-### 4. 박물관 도메인 특화 (`rag_chain.py`)
+### 4. 멀티타겟 데이터 생성 (`data_generator.py`)
+```python
+def generate_responses(source_content, question):
+    """하나의 소스에서 일반+어린이 응답 생성"""
+
+    # 일반용: 전문적, 상세한 설명 (300-500자)
+    general_response = ollama_api.generate(f"""
+    다음 박물관 정보를 바탕으로 전문적으로 답변해주세요:
+    질문: {question}
+    정보: {source_content}
+    """)
+
+    # 어린이용: 친근하고 재미있는 설명 + 이모지 (100-150자)
+    children_response = ollama_api.generate(f"""
+    다음을 어린이가 이해하기 쉽게 설명해주세요:
+    - "~이에요", "~답니다" 등 친근한 말투
+    - 적절한 이모지 사용 (🌟, 🎨, ⚔️ 등)
+    질문: {question}
+    정보: {source_content}
+    """)
+```
+
+### 5. LoRA 파인튜닝 (`fine_tuning.py`)
+```python
+class MultiTargetTrainer:
+    def setup_lora_config(self, target_type):
+        """LoRA 설정 - 효율적 파인튜닝"""
+        lora_config = LoraConfig(
+            r=16,                    # LoRA 랭크
+            lora_alpha=32,          # 스케일링 파라미터
+            target_modules=[        # 어텐션 레이어만 파인튜닝
+                "q_proj", "k_proj", "v_proj", "o_proj",
+                "gate_proj", "up_proj", "down_proj"
+            ],
+            lora_dropout=0.1,       # 과적합 방지
+        )
+        # 결과: 전체 모델의 1.18%만 학습 (매우 효율적)
+```
+
+### 6. 교통 정보 정확도 개선 (`improved_rag.py`)
+```python
+def _detect_transport_intent(self, query):
+    """질문에서 교통수단 의도 파악"""
+    subway_keywords = ["지하철", "전철", "역", "호선"]
+    bus_keywords = ["버스", "시내버스", "마을버스"]
+
+    # 지하철 질문 → 지하철 정보만 제공
+    if any(keyword in query for keyword in subway_keywords):
+        return "subway"  # 관련 문서 점수 3배 가중
+```
+
+### 7. 박물관 도메인 특화 (`rag_chain.py`)
 ```python
 def _expand_query(self, query):
     # 박물관 전문 용어 확장:
@@ -165,15 +257,23 @@ def _expand_query(self, query):
 
 ## 📊 모델 및 성능
 
-### 임베딩 모델
-- **BGE-M3**: 다국어 지원, 한국어 최적화
-- **Prompt**: document/query 구분으로 성능 향상
-- **정규화**: L2 normalization으로 코사인 유사도 계산
+### 🎯 **데이터 성과**
+- **크롤링 데이터**: 2194개 (유물, 전시, 교통 정보 등)
+- **학습 데이터 생성**: 2000개 → 539개 고품질 (중복 제거: 75.7%)
+- **최종 훈련 데이터**: 485개 훈련 + 54개 검증
+- **응답 품질**: 일반(457.3자), 어린이(334.6자) 평균
 
-### LLM 모델
-- **Qwen2.5-1.5B-Instruct**: 경량화된 고성능 모델
-- **인용 시스템**: 답변에 `[1][2]` 형태 출처 번호 포함
-- **Temperature**: 0.0-0.3 (일관성 있는 사실 전달)
+### 🚀 **Tesla V100 성능**
+- **데이터 생성 속도**: 배치당 2-5초 (20개씩)
+- **총 생성 시간**: 2000개 기준 약 2-3시간
+- **LoRA 훈련 시간**: 485개 데이터로 10-15분/모델
+- **GPU 사용률**: 74% 활용 (최적화됨)
+
+### 🤖 **모델 구성**
+- **기본 모델**: Qwen2.5-1.5B-Instruct
+- **LoRA 파인튜닝**: 전체 파라미터의 1.18%만 훈련
+- **임베딩**: BGE-M3 (한국어 최적화)
+- **벡터 DB**: ChromaDB (코사인 유사도)
 
 ### 평가 메트릭
 ```bash
