@@ -24,4 +24,6 @@ nmK-rag/data_curated/
 nmK-rag/index/
 
 # nmK-rag 프로젝트 - 크롤링 로그 파일들
-nmK-rag/*.log
+nmK-rag/*.lognmK-rag/data/
+nmK-rag/generated_data/
+nmK-rag/models/
