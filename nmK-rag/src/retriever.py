@@ -43,7 +43,6 @@ class HybridRetriever:
         query_vec = self.encoder.encode(
             [query],
             normalize_embeddings=True,
-            prompt_name=QUERY_PROMPT,
             show_progress_bar=False,
         )
         q = self.col.query(
