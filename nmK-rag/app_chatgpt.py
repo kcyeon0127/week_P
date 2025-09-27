@@ -137,10 +137,13 @@ if prompt := st.chat_input("질문을 입력하세요... (예: 현재 전시 중
             # 검색 및 생성
             rag = st.session_state.rag
             ctx = rag.retrieve(prompt, k=10)
-            answer = rag.generate(prompt, ctx, target_type=selected_target)
+            answer_obj = rag.generate(prompt, ctx, target_type=selected_target)
+
+            # Answer 객체에서 텍스트 추출
+            answer_text = answer_obj.text if hasattr(answer_obj, 'text') else str(answer_obj)
 
             # 응답 표시
-            st.write(answer)
+            st.write(answer_text)
 
             # 검색 결과 표시
             if show_ctx and ctx:
@@ -161,7 +164,7 @@ if prompt := st.chat_input("질문을 입력하세요... (예: 현재 전시 중
             # 어시스턴트 메시지 저장
             st.session_state.chat.append({
                 "role": "assistant",
-                "content": answer,
+                "content": answer_text,  # answer → answer_text로 변경
                 "target_type": selected_target,
                 "ctx": ctx
             })

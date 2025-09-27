@@ -134,7 +134,7 @@ class MultiTargetLLM:
         generation_kwargs = dict(
             **inputs,
             streamer=streamer,
-            max_new_tokens=1024,  # 512 → 1024로 늘림
+            max_new_tokens=2048,  # 1024 → 2048로 더 늘림
             do_sample=False,
             temperature=0.0,
             pad_token_id=tokenizer.eos_token_id
