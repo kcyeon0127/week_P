@@ -66,11 +66,11 @@ class MultiTargetLLM:
         for model_type, model_path in model_configs.items():
             self.load_lora_model(model_path, model_type)
 
-        # 베이스 모델도 로드 (fallback용)
-        if "base" not in self.models:
+        # 일반 모델이 없으면 베이스 모델을 일반 모델로 로드 (fallback용)
+        if "general" not in self.models:
             tokenizer, model = self.load_base_model()
-            self.models["base"] = model
-            self.tokenizers["base"] = tokenizer
+            self.models["general"] = model
+            self.tokenizers["general"] = tokenizer
 
         logger.info(f"로드된 모델들: {list(self.models.keys())}")
 
@@ -88,8 +88,13 @@ class MultiTargetLLM:
         """특정 모델로 채팅"""
         # 모델이 로드되지 않은 경우 로드
         if target_type not in self.models:
-            logger.warning(f"{target_type} 모델이 로드되지 않았습니다. 베이스 모델을 사용합니다.")
-            target_type = "base"
+            logger.warning(f"{target_type} 모델이 로드되지 않았습니다. 일반 모델을 사용합니다.")
+            target_type = "general"
+
+        # 일반 모델도 없다면 로드
+        if target_type not in self.models:
+            logger.info(f"{target_type} 모델을 로드합니다...")
+            self.load_lora_model(f"models/lora-{target_type}", target_type)
 
         tokenizer = self.tokenizers[target_type]
         model = self.models[target_type]
