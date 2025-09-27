@@ -88,7 +88,7 @@ if "rag" not in st.session_state:
 for i, message in enumerate(st.session_state.chat):
     if message["role"] == "user":
         with st.chat_message("user"):
-            st.write(message["content"])
+            st.markdown(message["content"])
     else:
         with st.chat_message("assistant", avatar="🏛️"):
             # 응답 모드 표시
@@ -96,7 +96,7 @@ for i, message in enumerate(st.session_state.chat):
             mode_text = "어린이 친화" if message.get('target_type') == 'children' else "일반"
             st.caption(f"{mode_icon} {mode_text} 모드")
 
-            st.write(message["content"])
+            st.markdown(message["content"])
 
             # 검색 결과 표시 (접을 수 있게)
             if show_ctx and message.get("ctx"):
@@ -142,8 +142,8 @@ if prompt := st.chat_input("질문을 입력하세요... (예: 현재 전시 중
             # Answer 객체에서 텍스트 추출
             answer_text = answer_obj.text if hasattr(answer_obj, 'text') else str(answer_obj)
 
-            # 응답 표시
-            st.write(answer_text)
+            # 응답 표시 (전체 텍스트 표시 보장)
+            st.markdown(answer_text)
 
             # 검색 결과 표시
             if show_ctx and ctx:
