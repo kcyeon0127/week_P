@@ -226,6 +226,7 @@ for turn in st.session_state.chat:
                     st.info("📋 이 답변은 직접적인 문서 인용 없이 생성되었습니다.")
 
 if st.session_state.chat:
+    pass  # 채팅 이력이 있을 때의 추가 처리 (현재는 없음)
 
 # 푸터
 st.markdown("---")
