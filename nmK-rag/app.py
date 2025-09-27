@@ -65,18 +65,11 @@ with st.sidebar:
     }
     selected_target = target_mapping[target_type]
 
-    # 검색 옵션
-    st.subheader("📊 검색 설정")
-    k = st.slider("검색 결과 개수", 3, 10, 6, 1)
+    # 검색 옵션 (고정값)
+    k = 10  # 검색 결과 개수 고정
 
-    # 시간 우선순위 설정
-    st.subheader("⏰ 시간 우선순위")
-    time_priority = st.radio(
-        "정보 우선순위",
-        ["🔥 현재 정보 우선", "📚 모든 정보 포함", "🕰️ 과거 정보 포함"],
-        index=0,
-        help="현재 정보 우선: 입장료/운영시간 등 현재 유효한 정보만 제공"
-    )
+    # 기본 설정: 현재 정보 우선
+    time_priority = "🔥 현재 정보 우선"
 
     # 필터링 옵션
     st.subheader("🎯 관심 분야 필터")
@@ -179,16 +172,11 @@ for turn in st.session_state.chat:
             st.write(f"**질문:** {turn['content']}")
     else:
         with st.chat_message("assistant", avatar="🏛️"):
-            # 응답 모드 및 시간 우선순위 표시
+            # 응답 모드 표시
             response_mode = turn.get('target_type', 'general')
             mode_icon = "👶" if response_mode == "children" else "👨‍🎓"
             mode_text = "어린이 친화" if response_mode == "children" else "일반"
-
-            priority = turn.get('time_priority', '📚 모든 정보 포함')
-            if priority == "🔥 현재 정보 우선":
-                st.caption(f"{mode_icon} {mode_text} 모드 | 🔥 현재 유효한 정보를 우선하여 답변")
-            else:
-                st.caption(f"{mode_icon} {mode_text} 모드로 답변")
+            st.caption(f"{mode_icon} {mode_text} 모드로 답변")
 
             st.write(f"**AI 도슨트:** {turn['content']}")
 
@@ -238,93 +226,6 @@ for turn in st.session_state.chat:
                     st.info("📋 이 답변은 직접적인 문서 인용 없이 생성되었습니다.")
 
 if st.session_state.chat:
-    st.markdown("---")
-    st.markdown("### 📊 AI 도슨트 답변 평가")
-    st.caption("마지막 답변에 대한 평가를 해주세요. 서비스 개선에 도움이 됩니다.")
-
-    # 평가 항목들
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        s1 = st.slider("🎯 정확성", 1, 5, 4, help="정보의 정확성과 사실성")
-    with col2:
-        s2 = st.slider("📚 충분성", 1, 5, 4, help="답변의 완성도와 상세함")
-    with col3:
-        s3 = st.slider("💡 명확성", 1, 5, 4, help="이해하기 쉽고 명확한 설명")
-    with col4:
-        s4 = st.slider("🔗 근거성", 1, 5, 4, help="출처와 인용의 적절성")
-
-    # 질문 유형 분류
-    st.markdown("**📂 질문 유형 분류:**")
-    col1, col2 = st.columns(2)
-    with col1:
-        primary_tags = st.multiselect(
-            "주요 질문 유형",
-            ["전시안내", "관람정보", "교통안내", "유물해설", "해설프로그램", "편의시설"],
-            default=[]
-        )
-    with col2:
-        secondary_tags = st.multiselect(
-            "세부 분류",
-            ["현재전시", "과거전시", "운영시간", "입장료", "주차", "국보", "어린이", "가족"],
-            default=[]
-        )
-
-    # 만족도 및 개선사항
-    satisfaction = st.radio(
-        "**전반적인 만족도:**",
-        ["😄 매우 만족", "🙂 만족", "😐 보통", "😕 불만족", "😞 매우 불만족"],
-        horizontal=True
-    )
-
-    comment = st.text_area(
-        "**개선사항이나 추가 의견:**",
-        placeholder="답변에서 아쉬웠던 점이나 추가로 알고 싶은 내용을 자유롭게 적어주세요..."
-    )
-
-    if st.button("💾 평가 저장하기", type="primary"):
-        log_path = "ai_docent_evaluations.csv"
-        last_question = ""
-        last_answer = ""
-        last_sources = []
-
-        # 마지막 Q&A 쌍 찾기
-        for i in range(len(st.session_state.chat)-1, -1, -1):
-            turn = st.session_state.chat[i]
-            if turn["role"] == "assistant":
-                last_answer = turn["content"]
-                last_sources = ";".join([s.get("url","") for s in turn.get("sources",[])])
-                if i > 0 and st.session_state.chat[i-1]["role"] == "user":
-                    last_question = st.session_state.chat[i-1]["content"]
-                break
-
-        # 평가 레코드 생성
-        rec = {
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "question": last_question,
-            "answer": last_answer[:500] + "..." if len(last_answer) > 500 else last_answer,
-            "sources_count": len(last_sources.split(";")) if last_sources else 0,
-            "accuracy": s1,
-            "sufficiency": s2,
-            "clarity": s3,
-            "faithfulness": s4,
-            "primary_tags": ";".join(primary_tags),
-            "secondary_tags": ";".join(secondary_tags),
-            "satisfaction": satisfaction,
-            "comment": comment,
-            "search_results_count": k
-        }
-
-        # CSV 저장
-        import csv, os
-        file_exists = os.path.exists(log_path)
-        with open(log_path, "a", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=list(rec.keys()))
-            if not file_exists:
-                writer.writeheader()
-            writer.writerow(rec)
-
-        st.success("✅ 평가가 저장되었습니다! 소중한 피드백 감사합니다.")
-        st.balloons()  # 축하 애니메이션
 
 # 푸터
 st.markdown("---")
