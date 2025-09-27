@@ -120,15 +120,46 @@ if "chat" not in st.session_state:
 if "rag" not in st.session_state:
     st.session_state.rag = RAG()
 
-# 질문 입력
-st.markdown("### 💬 AI 도슨트에게 질문하기")
+# ChatGPT 스타일 대화 표시
+st.markdown("### 💬 AI 도슨트와 대화하기")
 
-q = st.text_input(
-    "질문을 입력하세요:",
-    placeholder="예: 현재 전시 중인 특별전은 무엇인가요?"
-)
+# 대화 이력 표시
+for i, turn in enumerate(st.session_state.chat):
+    if turn["role"] == "user":
+        with st.chat_message("user"):
+            st.write(turn["content"])
+    else:
+        with st.chat_message("assistant", avatar="🏛️"):
+            # 응답 모드 표시
+            response_mode = turn.get('target_type', 'general')
+            mode_icon = "👶" if response_mode == "children" else "👨‍🎓"
+            mode_text = "어린이 친화" if response_mode == "children" else "일반"
+            st.caption(f"{mode_icon} {mode_text} 모드로 답변")
 
-ask = st.button("🚀 AI 도슨트에게 질문하기", type="primary")
+            st.write(turn["content"])
+
+            # 검색 결과 표시 (접을 수 있게)
+            if show_ctx and turn.get("ctx"):
+                with st.expander("🔍 검색된 관련 문서들"):
+                    ctx_by_type = {}
+                    for c in turn.get("ctx", []):
+                        doctype = c.get('doctype', 'web')
+                        if doctype not in ctx_by_type:
+                            ctx_by_type[doctype] = []
+                        ctx_by_type[doctype].append(c)
+
+                    for doctype, docs in ctx_by_type.items():
+                        st.markdown(f"**📂 {doctype.upper()} 문서 ({len(docs)}개)**")
+                        for j, c in enumerate(docs):
+                            title = c.get("title", "(제목 없음)")
+                            url = c.get("url", "")
+                            st.markdown(f"- **[{j+1}]** {title}")
+                            if url:
+                                st.markdown(f"  🔗 {url}")
+
+# ChatGPT 스타일 입력
+q = st.chat_input("질문을 입력하세요... (예: 현재 전시 중인 특별전은?)")
+ask = q is not None and q.strip() != ""
 
 def render_sources(sources):
     if not sources:
@@ -164,9 +195,7 @@ if ask and q.strip():
 
 # 대화 히스토리 표시
 if st.session_state.chat:
-    st.markdown("### 💬 대화 기록")
-
-for turn in st.session_state.chat:
+    # 대화 기록은 위의 ChatGPT 스타일로 통합됨
     if turn["role"]=="user":
         with st.chat_message("user"):
             st.write(f"**질문:** {turn['content']}")
