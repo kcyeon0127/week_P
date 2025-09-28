@@ -129,53 +129,24 @@ class MultiTargetLLM:
         generation_kwargs = dict(
             **inputs,
             streamer=streamer,
-            max_new_tokens=256,          # 짧게 제한
-            do_sample=True,              # 다양성 추가
-            temperature=0.3,             # 약간의 무작위성
-            top_p=0.95,                  # nucleus sampling
-            repetition_penalty=1.2,      # 반복 방지
-            no_repeat_ngram_size=3,      # 3-gram 반복 금지
-            pad_token_id=tokenizer.eos_token_id,
-            eos_token_id=tokenizer.eos_token_id
+            max_new_tokens=1024,         # 다시 길게
+            do_sample=False,
+            temperature=0.0,
+            pad_token_id=tokenizer.eos_token_id
         )
 
         # 생성 실행
         thread = Thread(target=model.generate, kwargs=generation_kwargs)
         thread.start()
 
-        # 결과 수집 (반복 감지)
+        # 결과 수집
         output = []
-        last_tokens = []
-
         for token in streamer:
             if token:
-                # 반복 패턴 감지
-                last_tokens.append(token)
-                if len(last_tokens) > 10:
-                    last_tokens.pop(0)
-
-                # 같은 토큰이 연속으로 나타나면 중단
-                if len(last_tokens) >= 3 and len(set(last_tokens[-3:])) == 1:
-                    break
-
                 output.append(token)
 
-                # 너무 길어지면 중단
-                if len(output) > 100:
-                    break
-
         thread.join()
-        result = "".join(output).strip()
-
-        # 반복 문장 제거
-        sentences = result.split('.')
-        unique_sentences = []
-        for sentence in sentences:
-            sentence = sentence.strip()
-            if sentence and sentence not in unique_sentences:
-                unique_sentences.append(sentence)
-
-        return '.'.join(unique_sentences[:3]) + '.' if unique_sentences else result
+        return "".join(output).strip()
 
 def use_ollama() -> bool:
     """Ollama 사용 여부 확인"""
