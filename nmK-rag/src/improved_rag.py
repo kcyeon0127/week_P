@@ -269,8 +269,15 @@ class ImprovedRAG:
         return items
 
     def retrieve(self, query: str, k=6) -> List[Dict[str, Any]]:
-        # 박물관 도메인 키워드 확장 (교통수단 의도 반영)
-        expanded_query = self._expand_query(query)
+        # 교통수단 의도 파악
+        transport_intent = self._detect_transport_intent(query)
+
+        # 지하철 질문인 경우 강제로 교통 관련 키워드 추가
+        if transport_intent == "subway":
+            expanded_query = query + " 지하철 이촌역 4호선 교통 오시는길"
+        else:
+            # 박물관 도메인 키워드 확장 (교통수단 의도 반영)
+            expanded_query = self._expand_query(query)
 
         # 더 많은 후보를 가져와서 필터링
         candidate_k = min(k * 3, 20)  # 3배수로 가져오되 최대 20개
