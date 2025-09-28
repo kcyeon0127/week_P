@@ -5,9 +5,8 @@ from dataclasses import dataclass
 from src.retriever import HybridRetriever
 from src.multitarget_llm import chat
 from src.constants import (
-    QUERY_EXPANSION_KEYWORDS, TRANSPORT_KEYWORDS, LOCATION_KEYWORDS,
-    CURRENT_INFO_KEYWORDS, PAST_INDICATORS, BASE_SYSTEM_PROMPT, TARGET_PROMPTS,
-    CURRENT_YEAR
+    QUERY_EXPANSION_KEYWORDS, CURRENT_INFO_KEYWORDS, PAST_INDICATORS,
+    BASE_SYSTEM_PROMPT, TARGET_PROMPTS, CURRENT_YEAR
 )
 import re
 
@@ -29,13 +28,6 @@ class RAG:
                 expanded += " " + " ".join(synonyms)
         return expanded
 
-    def _detect_transport_intent(self, query: str) -> Optional[str]:
-        """교통수단 의도 감지"""
-        query_lower = query.lower()
-        for transport_type, keywords in TRANSPORT_KEYWORDS.items():
-            if any(keyword in query_lower for keyword in keywords):
-                return transport_type
-        return None
 
     def _filter_outdated_content(self, query: str, items: List) -> List:
         """과거 정보 필터링"""
@@ -64,28 +56,11 @@ class RAG:
 
     def retrieve(self, query: str, k=8) -> List[Dict[str, Any]]:
         """문서 검색"""
-        # 교통수단 의도 감지
-        transport_intent = self._detect_transport_intent(query)
-
-        # 지하철 질문인 경우 강제로 교통 키워드 추가
-        if transport_intent == "subway":
-            expanded_query = query + " 지하철 이촌역 4호선 교통 오시는길"
-        else:
-            expanded_query = self._expand_query(query)
+        # 간단한 쿼리 확장만 사용
+        expanded_query = self._expand_query(query)
 
         # 검색 실행
         items = self.ret.hybrid(expanded_query, top_k=min(k*2, 16), rerank=True)
-
-        # 교통수단별 관련성 필터링
-        if transport_intent:
-            for item in items:
-                text_lower = item.text.lower()
-                title_lower = item.meta.get("title", "").lower()
-
-                if transport_intent == "subway":
-                    subway_keywords = ["지하철", "이촌역", "4호선", "전철", "역"]
-                    if any(kw in text_lower or kw in title_lower for kw in subway_keywords):
-                        item.score *= 5.0  # 지하철 관련 문서 점수 높임
 
         # 과거 정보 필터링
         items = self._filter_outdated_content(query, items)
@@ -109,19 +84,10 @@ class RAG:
 
     def generate(self, query: str, ctx: List[Dict[str, Any]], target_type: str = "general") -> Answer:
         """답변 생성"""
-        # 시스템 프롬프트 생성
+        # 시스템 프롬프트 생성 (LLM이 알아서 판단)
         system_prompt = BASE_SYSTEM_PROMPT + TARGET_PROMPTS.get(target_type, TARGET_PROMPTS["general"])
 
-        # 교통수단/위치 의도 감지하여 프롬프트 추가
-        transport_intent = self._detect_transport_intent(query)
-        is_location_query = any(keyword in query for keyword in LOCATION_KEYWORDS)
-
-        if transport_intent == "subway":
-            system_prompt += "\n지하철 질문입니다. 이촌역 4호선 정보만 제공하세요."
-        elif is_location_query:
-            system_prompt += "\n위치 질문입니다. 전시실과 층수만 간단히 답변하세요."
-
-        # LLM 호출
+        # LLM 호출 (의도 감지 없이 LLM에게 맡김)
         text = chat(system_prompt, query, ctx, target_type=target_type)
 
         # 출처 추출
