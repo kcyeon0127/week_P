@@ -144,17 +144,26 @@ class MultiTargetLLM:
         thread = Thread(target=model.generate, kwargs=generation_kwargs)
         thread.start()
 
-        # 결과 수집
+        # 결과 수집 (조기 종료 방지)
         output = []
         for token in streamer:
-            output.append(token)
+            if token:  # 빈 토큰 무시
+                output.append(token)
 
         thread.join()
-        return "".join(output).strip()
+
+        # 완전한 응답 보장
+        full_text = "".join(output).strip()
+
+        # 마지막이 불완전하게 끝났다면 적절히 마무리
+        if full_text and not full_text.endswith(('.', '!', '?', '다', '요', '니다', '습니다')):
+            full_text += "."
+
+        return full_text
 
 def use_ollama() -> bool:
     """Ollama 사용 여부 확인"""
-    return os.getenv("OLLAMA_MODEL") is not None
+    return False  # Qwen 모델을 강제로 사용하도록 비활성화
 
 def chat_ollama(system: str, user: str, context_snippets: List[Dict]) -> str:
     """Ollama API 호출"""
