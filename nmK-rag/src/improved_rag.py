@@ -313,15 +313,23 @@ class ImprovedRAG:
 
         # 질문 의도를 명확히 하는 추가 프롬프트
         transport_intent = self._detect_transport_intent(query)
+
+        # 위치 질문 감지
+        location_keywords = ["어디", "어디서", "위치", "장소", "전시실", "볼 수 있", "있나요", "있어"]
+        is_location_query = any(keyword in query for keyword in location_keywords)
+        # 의도별 프롬프트 추가
         if transport_intent:
             intent_prompt = ""
             if transport_intent == "subway":
-                intent_prompt = "\n\n**절대 규칙**: 질문자는 지하철 이용 방법을 묻고 있습니다. 반드시 주어진 컨텍스트만 사용하여 답변하세요. 국립중앙박물관은 이촌역(4호선)에 있습니다. 역삼역이나 다른 잘못된 역 이름을 절대 언급하지 마세요. 컨텍스트에 없는 정보는 절대 만들어내지 마세요."
+                intent_prompt = "\n\n**지하철 안내 특별 규칙**: \n1. 반드시 한국어로만 답변 (중국어/영어 금지)\n2. 국립중앙박물관은 이촌역(4호선) 2번 출구에서 도보 5분\n3. 오금동역, 역삼역 등 잘못된 역 이름 절대 금지\n4. 웹사이트나 일반 소개 말고 교통 방법만 설명\n5. 컨텍스트에 있는 정확한 길 안내만 제공"
             elif transport_intent == "car":
                 intent_prompt = "\n\n**절대 규칙**: 질문자는 자동차/주차 정보를 묻고 있습니다. 반드시 주어진 컨텍스트만 사용하여 주차장 정보만 제공하고, 대중교통 정보는 언급하지 마세요."
             elif transport_intent == "bus":
                 intent_prompt = "\n\n**절대 규칙**: 질문자는 버스 이용 방법을 묻고 있습니다. 반드시 주어진 컨텍스트만 사용하여 버스 관련 정보만 제공하세요."
             system_prompt += intent_prompt
+        elif is_location_query:
+            location_prompt = "\n\n**위치 질문 규칙**: 질문자는 유물이나 전시의 위치를 묻고 있습니다. 전시실 이름과 층수만 간단히 답변하고, 유물의 역사나 특징은 설명하지 마세요."
+            system_prompt += location_prompt
 
         # LLM 호출 (target_type 전달)
         text = chat(system_prompt, query, ctx, target_type=target_type)

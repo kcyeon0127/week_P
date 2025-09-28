@@ -77,11 +77,14 @@ class MultiTargetLLM:
     def get_system_prompt(self, target_type: str) -> str:
         """타겟별 시스템 프롬프트"""
         base_rules = """
-**핵심 규칙**:
-1. 반드시 주어진 컨텍스트만 사용하여 답변하세요
-2. 컨텍스트에 없는 정보는 절대 만들어내지 마세요
-3. 잘못된 정보(특히 지하철역 정보)를 생성하지 마세요
-4. 국립중앙박물관은 이촌역(지하철 4호선)에 위치합니다"""
+**절대 준수 규칙**:
+1. 반드시 한국어로만 답변하세요 (중국어, 영어 등 다른 언어 사용 금지)
+2. 반드시 주어진 컨텍스트만 사용하여 답변하세요
+3. 컨텍스트에 없는 정보는 절대 만들어내지 마세요
+4. 질문에 직접적으로만 답변하세요 (위치 질문이면 위치만, 시간 질문이면 시간만)
+5. 불필요한 설명이나 배경 정보는 포함하지 마세요
+6. 간결하고 명확하게 답변하세요
+7. 답변을 완성된 문장으로 마무리하세요"""
 
         if target_type == "children":
             return base_rules + """
@@ -145,10 +148,13 @@ class MultiTargetLLM:
         generation_kwargs = dict(
             **inputs,
             streamer=streamer,
-            max_new_tokens=2048,  # 1024 → 2048로 더 늘림
-            do_sample=False,
-            temperature=0.0,
-            pad_token_id=tokenizer.eos_token_id
+            max_new_tokens=1024,  # 2048 → 1024로 줄여서 더 집중된 답변
+            do_sample=True,  # False → True로 변경
+            temperature=0.1,  # 0.0 → 0.1로 약간의 다양성 추가
+            top_p=0.9,  # nucleus sampling 추가
+            repetition_penalty=1.1,  # 반복 방지
+            pad_token_id=tokenizer.eos_token_id,
+            eos_token_id=tokenizer.eos_token_id
         )
 
         # 생성 실행
@@ -161,9 +167,9 @@ class MultiTargetLLM:
             for token in streamer:
                 if token:  # 빈 토큰 무시
                     output.append(token)
-                    # 스트림이 끊어지지 않도록 강제로 계속 수집
-                    if len(output) > 0 and token.strip() and not any(end in token for end in ['.', '!', '?', '다', '요', '니다', '습니다']):
-                        continue
+                    # EOS 토큰 감지하면 중단
+                    if tokenizer.eos_token in token:
+                        break
         except Exception as e:
             logger.warning(f"스트리밍 중 예외 발생: {e}")
 
