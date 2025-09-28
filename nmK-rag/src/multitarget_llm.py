@@ -129,7 +129,7 @@ class MultiTargetLLM:
         generation_kwargs = dict(
             **inputs,
             streamer=streamer,
-            max_new_tokens=512,          # 적당한 길이로 조정
+            max_new_tokens=1024,         # 다시 늘림
             do_sample=False,
             temperature=0.0,
             repetition_penalty=1.1,      # 반복 방지 추가
