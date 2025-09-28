@@ -93,7 +93,7 @@ with st.sidebar:
 
     # 표시 옵션
     st.subheader("📋 표시 옵션")
-    show_ctx = st.checkbox("검색된 원문 보기", value=True)
+    show_ctx = True  # 항상 검색된 원문 보기
     show_doctype = st.checkbox("문서 유형 표시", value=True)
 
     # 시스템 제어

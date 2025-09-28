@@ -106,7 +106,7 @@ class MultiTargetLLM:
         # 메시지 구성
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"[컨텍스트]\n{ctx}\n\n[질문]\n{user_query}\n\n규칙: 컨텍스트 근거 없는 내용은 쓰지 말고, 답 뒤에 (출처: [번호]) 인용표기."}
+            {"role": "user", "content": f"참고 자료:\n{ctx}\n\n질문: {user_query}\n\n위 자료를 바탕으로 답변하고, 출처는 (출처: [번호]) 형식으로 표기하세요."}
         ]
 
         # 채팅 템플릿 적용
@@ -129,7 +129,7 @@ class MultiTargetLLM:
         generation_kwargs = dict(
             **inputs,
             streamer=streamer,
-            max_new_tokens=1024,         # 다시 늘림
+            max_new_tokens=2048,         # 더 늘림
             do_sample=False,
             temperature=0.0,
             repetition_penalty=1.1,      # 반복 방지 추가
