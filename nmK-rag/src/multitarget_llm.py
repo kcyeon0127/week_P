@@ -76,12 +76,23 @@ class MultiTargetLLM:
 
     def get_system_prompt(self, target_type: str) -> str:
         """타겟별 시스템 프롬프트"""
+        base_rules = """
+**핵심 규칙**:
+1. 반드시 주어진 컨텍스트만 사용하여 답변하세요
+2. 컨텍스트에 없는 정보는 절대 만들어내지 마세요
+3. 잘못된 정보(특히 지하철역 정보)를 생성하지 마세요
+4. 국립중앙박물관은 이촌역(지하철 4호선)에 위치합니다"""
+
         if target_type == "children":
-            return """너는 어린이를 위한 친절한 박물관 안내봇이야.
+            return base_rules + """
+
+너는 어린이를 위한 친절한 박물관 안내봇이야.
 어려운 용어는 쉽게 설명하고, 재미있고 이해하기 쉽게 대답해줘.
 이모지를 적절히 사용해서 더 친근하게 대화해줘."""
         else:
-            return """너는 국립중앙박물관 전문 안내 도슨트이다.
+            return base_rules + """
+
+너는 국립중앙박물관 전문 안내 도슨트이다.
 정확하고 전문적인 정보를 제공하며, 교육적 가치가 있는 설명을 해줘."""
 
     def chat_with_model(self, target_type: str, user_query: str, context_snippets: List[Dict]) -> str:
@@ -146,18 +157,31 @@ class MultiTargetLLM:
 
         # 결과 수집 (조기 종료 방지)
         output = []
-        for token in streamer:
-            if token:  # 빈 토큰 무시
-                output.append(token)
+        try:
+            for token in streamer:
+                if token:  # 빈 토큰 무시
+                    output.append(token)
+                    # 스트림이 끊어지지 않도록 강제로 계속 수집
+                    if len(output) > 0 and token.strip() and not any(end in token for end in ['.', '!', '?', '다', '요', '니다', '습니다']):
+                        continue
+        except Exception as e:
+            logger.warning(f"스트리밍 중 예외 발생: {e}")
 
-        thread.join()
+        # 쓰레드 완료 대기
+        thread.join(timeout=30)  # 30초 타임아웃 추가
 
         # 완전한 응답 보장
         full_text = "".join(output).strip()
 
+        # 너무 짧은 응답 방지
+        if len(full_text) < 10:
+            logger.warning(f"응답이 너무 짧습니다: {len(full_text)}자")
+
         # 마지막이 불완전하게 끝났다면 적절히 마무리
         if full_text and not full_text.endswith(('.', '!', '?', '다', '요', '니다', '습니다')):
-            full_text += "."
+            # 문장이 중간에 끊어진 경우 마침표 추가
+            if len(full_text) > 20:
+                full_text += "."
 
         return full_text
 

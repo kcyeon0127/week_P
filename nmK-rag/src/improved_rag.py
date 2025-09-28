@@ -316,11 +316,11 @@ class ImprovedRAG:
         if transport_intent:
             intent_prompt = ""
             if transport_intent == "subway":
-                intent_prompt = "\n\n**중요**: 질문자는 지하철 이용 방법을 묻고 있습니다. 지하철 관련 정보만 제공하고, 자동차나 주차 정보는 언급하지 마세요."
+                intent_prompt = "\n\n**절대 규칙**: 질문자는 지하철 이용 방법을 묻고 있습니다. 반드시 주어진 컨텍스트만 사용하여 답변하세요. 국립중앙박물관은 이촌역(4호선)에 있습니다. 역삼역이나 다른 잘못된 역 이름을 절대 언급하지 마세요. 컨텍스트에 없는 정보는 절대 만들어내지 마세요."
             elif transport_intent == "car":
-                intent_prompt = "\n\n**중요**: 질문자는 자동차/주차 정보를 묻고 있습니다. 주차장 정보만 제공하고, 대중교통 정보는 언급하지 마세요."
+                intent_prompt = "\n\n**절대 규칙**: 질문자는 자동차/주차 정보를 묻고 있습니다. 반드시 주어진 컨텍스트만 사용하여 주차장 정보만 제공하고, 대중교통 정보는 언급하지 마세요."
             elif transport_intent == "bus":
-                intent_prompt = "\n\n**중요**: 질문자는 버스 이용 방법을 묻고 있습니다. 버스 관련 정보만 제공하세요."
+                intent_prompt = "\n\n**절대 규칙**: 질문자는 버스 이용 방법을 묻고 있습니다. 반드시 주어진 컨텍스트만 사용하여 버스 관련 정보만 제공하세요."
             system_prompt += intent_prompt
 
         # LLM 호출 (target_type 전달)
