@@ -2,7 +2,7 @@ import os
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from src.improved_rag import RAG
+from src.rag import RAG
 
 st.set_page_config(
     page_title="국립중앙박물관 AI 도슨트",

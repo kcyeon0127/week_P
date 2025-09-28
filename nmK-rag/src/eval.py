@@ -1,7 +1,7 @@
 import json, argparse
 from typing import List, Dict
 from statistics import mean
-from src.rag_chain import RAG
+from src.rag import RAG
 
 def evaluate(rag: RAG, qa_path: str, k: int = 6):
     gold = [json.loads(l) for l in open(qa_path,"r",encoding="utf-8")]

@@ -147,8 +147,9 @@ nmK-rag/
 │   └── merge_training_data.py     # 데이터 병합 도구
 │
 ├── 🤖 AI 시스템
-│   ├── src/improved_rag.py        # 개선된 RAG (교통정보 정확도 향상)
+│   ├── src/rag.py                # 통합 RAG 시스템 (간소화됨)
 │   ├── src/multitarget_llm.py     # 멀티타겟 LLM 시스템
+│   ├── src/constants.py           # 공통 상수 및 키워드
 │   ├── src/data_generator.py      # 무료 API 데이터 생성 엔진
 │   └── src/fine_tuning.py         # LoRA 파인튜닝
 │
@@ -244,7 +245,7 @@ question_templates = {
 ```
 
 ### **3. 검색 정확도 개선**
-`src/improved_rag.py` 수정:
+`src/rag.py`에서 간소화된 구조:
 ```python
 # 교통수단별 키워드 추가
 subway_keywords = ["지하철", "전철", "역", "호선", "새로운_키워드"]

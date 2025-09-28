@@ -59,19 +59,22 @@ nmK-rag/
 ├── data_raw/                 # 크롤링된 원본 JSON 데이터
 ├── data_curated/             # 정제된 문서 및 청크 데이터
 ├── index/                    # ChromaDB 벡터 인덱스
-├── src/                      # 핵심 로직
+├── src/                      # 핵심 로직 (리팩토링됨)
 │   ├── crawl/                # 데이터 수집
 │   │   ├── crawl.py          # 전시 정보 크롤러
 │   │   ├── crawl_commentary.py    # 해설 안내 크롤러
 │   │   ├── crawl_visitor_info.py  # 이용 안내 크롤러
 │   │   └── crawl_utils.py    # 크롤링 유틸리티 (전시 상태 판단 등)
+│   ├── constants.py          # 공통 상수 및 키워드 (신규)
 │   ├── schema.py             # 데이터 스키마 (Doc, Chunk)
 │   ├── curate_docs.py        # 텍스트 정제 및 노이즈 제거
 │   ├── clean_chunk.py        # 문서 청킹 (400-1200자)
 │   ├── embed_index.py        # BGE-M3 임베딩 & ChromaDB 인덱싱
 │   ├── retriever.py          # 하이브리드 검색 (Dense+BM25+Rerank)
-│   ├── llm.py                # Qwen2.5 LLM 인터페이스
-│   ├── rag_chain.py          # RAG 파이프라인 (시간 필터링 포함)
+│   ├── multitarget_llm.py    # 멀티타겟 LLM (일반/어린이)
+│   ├── rag.py                # 통합 RAG 시스템 (간소화됨)
+│   ├── data_generator.py     # 훈련 데이터 자동 생성
+│   ├── fine_tuning.py        # LoRA 파인튜닝
 │   ├── eval.py               # 평가 메트릭 (Hit@k, MRR, Faithfulness)
 │   └── parse_pdf.py          # PDF 문서 파싱
 └── ai_docent_evaluations.csv # 사용자 평가 로그
@@ -156,13 +159,13 @@ def get_exhibition_status(start_date, end_date):
     # 현재 날짜와 비교하여 current/ended/upcoming/unknown 분류
 ```
 
-### 2. 시간 컨텍스트 필터링 (`rag_chain.py`)
+### 2. 시간 컨텍스트 필터링 (`rag.py`)
 ```python
 def _filter_outdated_content(self, query, items):
-    # 3단계 필터링:
-    # 1. 키워드 기반: "지난", "과거", "종료" 등 감지
-    # 2. 연도 기반: 과거 연도(2000-2024) 언급시 점수 하향
-    # 3. URL 기반: 과거 전시 URL 패턴 감지
+    # 간소화된 필터링:
+    # 1. 키워드 기반: constants.PAST_INDICATORS 사용
+    # 2. 연도 기반: 과거 연도(2000-2024) 언급시 점수 0.5배
+    # 3. 현재 정보 우선: constants.CURRENT_INFO_KEYWORDS로 감지
 ```
 
 ### 3. 하이브리드 검색 (`retriever.py`)
@@ -212,24 +215,27 @@ class MultiTargetTrainer:
         # 결과: 전체 모델의 1.18%만 학습 (매우 효율적)
 ```
 
-### 6. 교통 정보 정확도 개선 (`improved_rag.py`)
+### 6. 교통 정보 정확도 개선 (`rag.py`)
 ```python
 def _detect_transport_intent(self, query):
     """질문에서 교통수단 의도 파악"""
-    subway_keywords = ["지하철", "전철", "역", "호선"]
-    bus_keywords = ["버스", "시내버스", "마을버스"]
+    # constants.TRANSPORT_KEYWORDS 사용
+    for transport_type, keywords in TRANSPORT_KEYWORDS.items():
+        if any(keyword in query_lower for keyword in keywords):
+            return transport_type  # subway, bus, car, taxi
 
     # 지하철 질문 → 지하철 정보만 제공
-    if any(keyword in query for keyword in subway_keywords):
-        return "subway"  # 관련 문서 점수 3배 가중
+    # 관련 문서 점수 5배 가중
 ```
 
-### 7. 박물관 도메인 특화 (`rag_chain.py`)
+### 7. 박물관 도메인 특화 (`constants.py`)
 ```python
-def _expand_query(self, query):
+QUERY_EXPANSION_KEYWORDS = {
     # 박물관 전문 용어 확장:
-    # "전시" → ["전시회", "특별전", "기획전", "상설전시"]
-    # "국보" → ["보물", "중요문화재", "문화유산"]
+    "전시": ["전시회", "특별전", "기획전", "상설전시"],
+    "국보": ["보물", "중요문화재", "문화유산"],
+    "지하철": ["전철", "메트로", "지하철역", "전철역", "역", "호선"]
+}
 ```
 
 ## 🆕 AI 도슨트 고도화 기능

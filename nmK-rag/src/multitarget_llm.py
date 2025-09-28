@@ -5,6 +5,7 @@ from peft import PeftModel
 import torch
 from threading import Thread
 import logging
+from .constants import BASE_SYSTEM_PROMPT, TARGET_PROMPTS
 
 logger = logging.getLogger(__name__)
 
@@ -76,27 +77,7 @@ class MultiTargetLLM:
 
     def get_system_prompt(self, target_type: str) -> str:
         """타겟별 시스템 프롬프트"""
-        base_rules = """
-**절대 준수 규칙**:
-1. 반드시 한국어로만 답변하세요 (중국어, 영어 등 다른 언어 사용 금지)
-2. 반드시 주어진 컨텍스트만 사용하여 답변하세요
-3. 컨텍스트에 없는 정보는 절대 만들어내지 마세요
-4. 질문에 직접적으로만 답변하세요 (위치 질문이면 위치만, 시간 질문이면 시간만)
-5. 불필요한 설명이나 배경 정보는 포함하지 마세요
-6. 간결하고 명확하게 답변하세요
-7. 답변을 완성된 문장으로 마무리하세요"""
-
-        if target_type == "children":
-            return base_rules + """
-
-너는 어린이를 위한 친절한 박물관 안내봇이야.
-어려운 용어는 쉽게 설명하고, 재미있고 이해하기 쉽게 대답해줘.
-이모지를 적절히 사용해서 더 친근하게 대화해줘."""
-        else:
-            return base_rules + """
-
-너는 국립중앙박물관 전문 안내 도슨트이다.
-정확하고 전문적인 정보를 제공하며, 교육적 가치가 있는 설명을 해줘."""
+        return BASE_SYSTEM_PROMPT + TARGET_PROMPTS.get(target_type, TARGET_PROMPTS["general"])
 
     def chat_with_model(self, target_type: str, user_query: str, context_snippets: List[Dict]) -> str:
         """특정 모델로 채팅"""
@@ -148,48 +129,24 @@ class MultiTargetLLM:
         generation_kwargs = dict(
             **inputs,
             streamer=streamer,
-            max_new_tokens=1024,  # 2048 → 1024로 줄여서 더 집중된 답변
-            do_sample=True,  # False → True로 변경
-            temperature=0.1,  # 0.0 → 0.1로 약간의 다양성 추가
-            top_p=0.9,  # nucleus sampling 추가
-            repetition_penalty=1.1,  # 반복 방지
-            pad_token_id=tokenizer.eos_token_id,
-            eos_token_id=tokenizer.eos_token_id
+            max_new_tokens=2048,
+            do_sample=False,
+            temperature=0.0,
+            pad_token_id=tokenizer.eos_token_id
         )
 
         # 생성 실행
         thread = Thread(target=model.generate, kwargs=generation_kwargs)
         thread.start()
 
-        # 결과 수집 (조기 종료 방지)
+        # 결과 수집
         output = []
-        try:
-            for token in streamer:
-                if token:  # 빈 토큰 무시
-                    output.append(token)
-                    # EOS 토큰 감지하면 중단
-                    if tokenizer.eos_token in token:
-                        break
-        except Exception as e:
-            logger.warning(f"스트리밍 중 예외 발생: {e}")
+        for token in streamer:
+            if token:
+                output.append(token)
 
-        # 쓰레드 완료 대기
-        thread.join(timeout=30)  # 30초 타임아웃 추가
-
-        # 완전한 응답 보장
-        full_text = "".join(output).strip()
-
-        # 너무 짧은 응답 방지
-        if len(full_text) < 10:
-            logger.warning(f"응답이 너무 짧습니다: {len(full_text)}자")
-
-        # 마지막이 불완전하게 끝났다면 적절히 마무리
-        if full_text and not full_text.endswith(('.', '!', '?', '다', '요', '니다', '습니다')):
-            # 문장이 중간에 끊어진 경우 마침표 추가
-            if len(full_text) > 20:
-                full_text += "."
-
-        return full_text
+        thread.join()
+        return "".join(output).strip()
 
 def use_ollama() -> bool:
     """Ollama 사용 여부 확인"""
